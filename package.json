@@ -1,0 +1,13 @@
+{
+  "name": "primer-parcial-luis-mendoza",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {},
+  "engines": {
+    "node": ">=24 <25"
+  }
+}
