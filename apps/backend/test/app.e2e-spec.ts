@@ -30,6 +30,7 @@ describe('HealthController (e2e)', () => {
     expect(response.body).toEqual({
       status: 'ok',
       service: 'backend',
+      database: 'connected',
       timestamp: expect.any(String),
     });
   });
