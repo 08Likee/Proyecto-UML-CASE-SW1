@@ -12,8 +12,22 @@ import { RegistrarCuentaUseCase } from './application/use-cases/cu01-gestionar-c
 
 import { AuthController } from './presentation/controllers/auth.controller';
 
+import { JwtModule } from '@nestjs/jwt';
+import { TokenService } from './application/ports/security/token-service';
+import { JwtTokenService } from './infrastructure/security/jwt-token.service';
+
+import { RefreshTokenHasher } from './application/ports/security/refresh-token-hasher';
+import { SesionRepository } from './domain/repositories/sesion.repository';
+import { TypeOrmSesionRepository } from './infrastructure/persistence/repositories/typeorm-sesion.repository';
+import { Sha256RefreshTokenHasher } from './infrastructure/security/sha256-refresh-token-hasher';
+
+import { IniciarSesionUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/iniciar-sesion.use-case';
+
 @Module({
-  imports: [TypeOrmModule.forFeature([UsuarioEntity, SesionEntity])],
+  imports: [
+    TypeOrmModule.forFeature([UsuarioEntity, SesionEntity]),
+    JwtModule.register({}),
+  ],
   controllers: [AuthController],
   providers: [
     {
@@ -24,8 +38,21 @@ import { AuthController } from './presentation/controllers/auth.controller';
       provide: PasswordHasher,
       useClass: ScryptPasswordHasher,
     },
+    {
+      provide: TokenService,
+      useClass: JwtTokenService,
+    },
     RegistrarCuentaUseCase,
+    {
+      provide: SesionRepository,
+      useClass: TypeOrmSesionRepository,
+    },
+    {
+      provide: RefreshTokenHasher,
+      useClass: Sha256RefreshTokenHasher,
+    },
+    IniciarSesionUseCase,
   ],
-  exports: [UsuarioRepository, PasswordHasher],
+  exports: [UsuarioRepository, PasswordHasher, TokenService],
 })
 export class Pa01Module {}

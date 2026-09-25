@@ -77,4 +77,11 @@ export class TypeOrmUsuarioRepository implements UsuarioRepository {
       ultimaConexion: entity.ultimaConexion,
     };
   }
+
+  async actualizarUltimaConexion(
+    idUsuario: string,
+    fecha: Date,
+  ): Promise<void> {
+    await this.repository.update({ id: idUsuario }, { ultimaConexion: fecha });
+  }
 }

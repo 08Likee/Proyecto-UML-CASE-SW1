@@ -210,4 +210,141 @@ describe('Aplicacion (e2e)', () => {
 
     expect(Number(resultado[0].cantidad)).toBe(1);
   });
+
+  it('/api/auth/login inicia sesión correctamente', async () => {
+    const correo = 'sw1-e2e-login@example.test';
+    const contrasena = 'ClaveSegura123!';
+
+    const registro = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const usuarioId = registro.body.id;
+
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .set('User-Agent', 'Navegador e2e SW1')
+      .send({
+        correo: correo.toUpperCase(),
+        contrasena,
+      })
+      .expect(200);
+
+    expect(response.body.accessToken).toEqual(expect.any(String));
+
+    expect(response.body.refreshToken).toEqual(expect.any(String));
+
+    expect(response.body.usuario).toEqual({
+      id: usuarioId,
+      nombre: 'Luis',
+      apellido: 'Mendoza',
+      correo,
+      fotoPerfil: null,
+    });
+
+    expect(response.body.usuario).not.toHaveProperty('contrasenaHash');
+
+    const sesiones = await dataSource.query<
+      Array<{
+        refresh_token_hash: string;
+        fecha_creacion: Date;
+        fecha_expiracion: Date;
+        fecha_revocacion: Date | null;
+        dispositivo: string | null;
+      }>
+    >(
+      `
+      SELECT
+        refresh_token_hash,
+        fecha_creacion,
+        fecha_expiracion,
+        fecha_revocacion,
+        dispositivo
+      FROM sesion
+      WHERE id_usuario = $1
+    `,
+      [usuarioId],
+    );
+
+    expect(sesiones).toHaveLength(1);
+
+    expect(sesiones[0].refresh_token_hash).toMatch(/^[a-f0-9]{64}$/);
+
+    expect(sesiones[0].refresh_token_hash).not.toBe(response.body.refreshToken);
+
+    expect(sesiones[0].fecha_revocacion).toBeNull();
+
+    expect(sesiones[0].dispositivo).toBe('Navegador e2e SW1');
+
+    const diferenciaMs =
+      new Date(sesiones[0].fecha_expiracion).getTime() -
+      new Date(sesiones[0].fecha_creacion).getTime();
+
+    expect(diferenciaMs).toBeGreaterThanOrEqual(7 * 24 * 60 * 60 * 1000 - 5000);
+
+    expect(diferenciaMs).toBeLessThanOrEqual(7 * 24 * 60 * 60 * 1000 + 5000);
+
+    const usuarios = await dataSource.query<
+      Array<{ ultima_conexion: Date | null }>
+    >(
+      `
+      SELECT ultima_conexion
+      FROM usuario
+      WHERE id = $1
+    `,
+      [usuarioId],
+    );
+
+    expect(usuarios[0].ultima_conexion).not.toBeNull();
+  });
+
+  it('/api/auth/login rechaza una contraseña incorrecta', async () => {
+    const correo = 'sw1-e2e-login-password@example.test';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena: 'ClaveSegura123!',
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: 'ClaveIncorrecta!',
+      })
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Las credenciales proporcionadas no son válidas',
+    });
+  });
+
+  it('/api/auth/login rechaza un correo inexistente', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo: 'sw1-e2e-login-inexistente@example.test',
+        contrasena: 'ClaveSegura123!',
+      })
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Las credenciales proporcionadas no son válidas',
+    });
+  });
 });

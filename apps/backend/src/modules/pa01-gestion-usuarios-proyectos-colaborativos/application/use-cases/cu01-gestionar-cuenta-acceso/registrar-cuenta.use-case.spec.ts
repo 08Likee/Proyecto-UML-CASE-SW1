@@ -14,6 +14,7 @@ class UsuarioRepositoryFake extends UsuarioRepository {
   async buscarPorCorreo(): Promise<Usuario | null> {
     return this.usuarioExistente;
   }
+  async actualizarUltimaConexion(): Promise<void> {}
 
   async crear(datos: CrearUsuarioDatos): Promise<Usuario> {
     this.ultimoUsuarioCreado = datos;
