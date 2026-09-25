@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import {
   type CrearUsuarioDatos,
   type Usuario,
@@ -8,6 +8,7 @@ import {
 } from '../../../domain/models/usuario';
 import { UsuarioRepository } from '../../../domain/repositories/usuario.repository';
 import { UsuarioEntity } from '../entities/usuario.entity';
+import { CorreoYaRegistradoError } from '../../../domain/errors/correo-ya-registrado.error';
 
 @Injectable()
 export class TypeOrmUsuarioRepository implements UsuarioRepository {
@@ -25,6 +26,22 @@ export class TypeOrmUsuarioRepository implements UsuarioRepository {
     return entity ? this.toDomain(entity) : null;
   }
 
+  private esCorreoDuplicado(error: unknown): boolean {
+    if (!(error instanceof QueryFailedError)) {
+      return false;
+    }
+
+    const driverError = error.driverError as {
+      code?: string;
+      constraint?: string;
+    };
+
+    return (
+      driverError.code === '23505' &&
+      driverError.constraint === 'uq_usuario_correo'
+    );
+  }
+
   async crear(datos: CrearUsuarioDatos): Promise<Usuario> {
     const entity = this.repository.create({
       nombre: datos.nombre,
@@ -34,9 +51,17 @@ export class TypeOrmUsuarioRepository implements UsuarioRepository {
       fotoPerfil: datos.fotoPerfil ?? null,
     });
 
-    const guardado = await this.repository.save(entity);
+    try {
+      const guardado = await this.repository.save(entity);
 
-    return this.toDomain(guardado);
+      return this.toDomain(guardado);
+    } catch (error: unknown) {
+      if (this.esCorreoDuplicado(error)) {
+        throw new CorreoYaRegistradoError();
+      }
+
+      throw error;
+    }
   }
 
   private toDomain(entity: UsuarioEntity): Usuario {
