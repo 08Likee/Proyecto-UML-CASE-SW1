@@ -9,6 +9,7 @@ export interface Sesion {
 }
 
 export interface CrearSesionDatos {
+  id: string;
   refreshTokenHash: string;
   fechaExpiracion: Date;
   dispositivo?: string | null;

@@ -17,6 +17,7 @@ export class TypeOrmSesionRepository implements SesionRepository {
 
   async crear(datos: CrearSesionDatos): Promise<Sesion> {
     const entity = this.repository.create({
+      id: datos.id,
       refreshTokenHash: datos.refreshTokenHash,
       fechaExpiracion: datos.fechaExpiracion,
       dispositivo: datos.dispositivo ?? null,
@@ -26,6 +27,22 @@ export class TypeOrmSesionRepository implements SesionRepository {
     const guardado = await this.repository.save(entity);
 
     return this.toDomain(guardado);
+  }
+
+  async buscarPorRefreshTokenHash(
+    refreshTokenHash: string,
+  ): Promise<Sesion | null> {
+    const entity = await this.repository.findOne({
+      where: {
+        refreshTokenHash,
+      },
+    });
+
+    return entity ? this.toDomain(entity) : null;
+  }
+
+  async revocar(idSesion: string, fecha: Date): Promise<void> {
+    await this.repository.update({ id: idSesion }, { fechaRevocacion: fecha });
   }
 
   private toDomain(entity: SesionEntity): Sesion {
@@ -38,5 +55,15 @@ export class TypeOrmSesionRepository implements SesionRepository {
       dispositivo: entity.dispositivo,
       idUsuario: entity.idUsuario,
     };
+  }
+
+  async buscarPorId(idSesion: string): Promise<Sesion | null> {
+    const entity = await this.repository.findOne({
+      where: {
+        id: idSesion,
+      },
+    });
+
+    return entity ? this.toDomain(entity) : null;
   }
 }

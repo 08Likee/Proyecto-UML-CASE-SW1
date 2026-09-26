@@ -60,6 +60,7 @@ export class IniciarSesionUseCase {
     const refreshTokenHash = this.refreshTokenHasher.hash(tokens.refreshToken);
 
     await this.sesionRepository.crear({
+      id: tokens.sesionId,
       refreshTokenHash,
       fechaExpiracion: tokens.refreshTokenExpiraEn,
       dispositivo: entrada.dispositivo ?? null,

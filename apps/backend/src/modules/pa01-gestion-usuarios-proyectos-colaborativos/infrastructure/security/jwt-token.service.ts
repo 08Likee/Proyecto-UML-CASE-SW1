@@ -5,12 +5,14 @@ import { randomUUID } from 'node:crypto';
 import {
   type TokensGenerados,
   TokenService,
+  TokenIdentity,
 } from '../../application/ports/security/token-service';
 
 type TipoToken = 'access' | 'refresh';
 
 interface JwtClaims {
   sub: string;
+  sid: string;
   tipo: TipoToken;
   jti: string;
 }
@@ -40,14 +42,17 @@ export class JwtTokenService implements TokenService {
   }
 
   async generarTokens(usuarioId: string): Promise<TokensGenerados> {
+    const sesionId = randomUUID();
     const accessPayload: JwtClaims = {
       sub: usuarioId,
+      sid: sesionId,
       tipo: 'access',
       jti: randomUUID(),
     };
 
     const refreshPayload: JwtClaims = {
       sub: usuarioId,
+      sid: sesionId,
       tipo: 'refresh',
       jti: randomUUID(),
     };
@@ -64,6 +69,7 @@ export class JwtTokenService implements TokenService {
     ]);
 
     return {
+      sesionId,
       accessToken,
       refreshToken,
       refreshTokenExpiraEn: new Date(
@@ -72,28 +78,34 @@ export class JwtTokenService implements TokenService {
     };
   }
 
-  async verificarAccessToken(token: string): Promise<string> {
+  async verificarAccessToken(token: string): Promise<TokenIdentity> {
     const payload = await this.jwtService.verifyAsync<JwtClaims>(token, {
       secret: this.accessSecret,
     });
 
-    if (payload.tipo !== 'access') {
-      throw new Error('Tipo de token inválido');
+    if (payload.tipo !== 'access' || !payload.sub || !payload.sid) {
+      throw new Error('Token de acceso inválido');
     }
 
-    return payload.sub;
+    return {
+      usuarioId: payload.sub,
+      sesionId: payload.sid,
+    };
   }
 
-  async verificarRefreshToken(token: string): Promise<string> {
+  async verificarRefreshToken(token: string): Promise<TokenIdentity> {
     const payload = await this.jwtService.verifyAsync<JwtClaims>(token, {
       secret: this.refreshSecret,
     });
 
-    if (payload.tipo !== 'refresh') {
-      throw new Error('Tipo de token inválido');
+    if (payload.tipo !== 'refresh' || !payload.sub || !payload.sid) {
+      throw new Error('Refresh token inválido');
     }
 
-    return payload.sub;
+    return {
+      usuarioId: payload.sub,
+      sesionId: payload.sid,
+    };
   }
 
   private getRequiredEnv(name: string): string {

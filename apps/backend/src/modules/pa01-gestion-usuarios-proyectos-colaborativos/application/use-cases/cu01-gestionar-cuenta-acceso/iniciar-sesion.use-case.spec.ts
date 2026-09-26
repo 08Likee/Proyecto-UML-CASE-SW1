@@ -13,12 +13,18 @@ import { PasswordHasher } from '../../ports/security/password-hasher';
 import { RefreshTokenHasher } from '../../ports/security/refresh-token-hasher';
 import {
   TokenService,
+  type TokenIdentity,
   type TokensGenerados,
 } from '../../ports/security/token-service';
 import { IniciarSesionUseCase } from './iniciar-sesion.use-case';
 
 class UsuarioRepositoryFake extends UsuarioRepository {
   usuario: Usuario | null = null;
+
+  ultimaConexionActualizada: {
+    idUsuario: string;
+    fecha: Date;
+  } | null = null;
 
   async buscarPorCorreo(): Promise<Usuario | null> {
     return this.usuario;
@@ -27,11 +33,6 @@ class UsuarioRepositoryFake extends UsuarioRepository {
   async crear(_datos: CrearUsuarioDatos): Promise<Usuario> {
     throw new Error('No implementado para esta prueba');
   }
-
-  ultimaConexionActualizada: {
-    idUsuario: string;
-    fecha: Date;
-  } | null = null;
 
   async actualizarUltimaConexion(
     idUsuario: string,
@@ -51,7 +52,7 @@ class SesionRepositoryFake extends SesionRepository {
     this.ultimaSesion = datos;
 
     return {
-      id: 'sesion-1',
+      id: datos.id,
       refreshTokenHash: datos.refreshTokenHash,
       fechaCreacion: new Date('2026-09-25T18:00:00Z'),
       fechaExpiracion: datos.fechaExpiracion,
@@ -60,6 +61,18 @@ class SesionRepositoryFake extends SesionRepository {
       idUsuario: datos.idUsuario,
     };
   }
+
+  async buscarPorRefreshTokenHash(
+    _refreshTokenHash: string,
+  ): Promise<Sesion | null> {
+    return null;
+  }
+
+  async buscarPorId(_idSesion: string): Promise<Sesion | null> {
+    return null;
+  }
+
+  async revocar(_idSesion: string, _fecha: Date): Promise<void> {}
 }
 
 class PasswordHasherFake extends PasswordHasher {
@@ -81,18 +94,25 @@ class TokenServiceFake extends TokenService {
     this.generado = true;
 
     return {
+      sesionId: 'sesion-1',
       accessToken: 'access-token',
       refreshToken: 'refresh-token',
       refreshTokenExpiraEn: new Date('2026-10-02T18:00:00Z'),
     };
   }
 
-  async verificarAccessToken(): Promise<string> {
-    return 'usuario-1';
+  async verificarAccessToken(): Promise<TokenIdentity> {
+    return {
+      usuarioId: 'usuario-1',
+      sesionId: 'sesion-1',
+    };
   }
 
-  async verificarRefreshToken(): Promise<string> {
-    return 'usuario-1';
+  async verificarRefreshToken(): Promise<TokenIdentity> {
+    return {
+      usuarioId: 'usuario-1',
+      sesionId: 'sesion-1',
+    };
   }
 }
 
@@ -101,6 +121,7 @@ class RefreshTokenHasherFake extends RefreshTokenHasher {
 
   hash(token: string): string {
     this.ultimoToken = token;
+
     return 'refresh-token-hash';
   }
 }
@@ -165,6 +186,7 @@ describe('IniciarSesionUseCase', () => {
     expect(refreshTokenHasher.ultimoToken).toBe('refresh-token');
 
     expect(sesionRepository.ultimaSesion).toEqual({
+      id: 'sesion-1',
       refreshTokenHash: 'refresh-token-hash',
       fechaExpiracion: new Date('2026-10-02T18:00:00Z'),
       dispositivo: 'Chrome en Windows',
@@ -192,6 +214,7 @@ describe('IniciarSesionUseCase', () => {
 
     expect(tokenService.generado).toBe(false);
     expect(sesionRepository.ultimaSesion).toBeNull();
+
     expect(usuarioRepository.ultimaConexionActualizada).toBeNull();
   });
 
@@ -208,6 +231,7 @@ describe('IniciarSesionUseCase', () => {
 
     expect(tokenService.generado).toBe(false);
     expect(sesionRepository.ultimaSesion).toBeNull();
+
     expect(usuarioRepository.ultimaConexionActualizada).toBeNull();
   });
 
@@ -226,6 +250,7 @@ describe('IniciarSesionUseCase', () => {
 
     expect(tokenService.generado).toBe(false);
     expect(sesionRepository.ultimaSesion).toBeNull();
+
     expect(usuarioRepository.ultimaConexionActualizada).toBeNull();
   });
 });

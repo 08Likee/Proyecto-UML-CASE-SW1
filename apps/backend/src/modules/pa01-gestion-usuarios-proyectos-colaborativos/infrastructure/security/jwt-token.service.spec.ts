@@ -27,6 +27,8 @@ describe('JwtTokenService', () => {
     expect(resultado.refreshToken).toEqual(expect.any(String));
 
     expect(resultado.accessToken).not.toBe(resultado.refreshToken);
+
+    expect(resultado.sesionId).toEqual(expect.any(String));
   });
 
   it('debe generar tokens con las duraciones configuradas', async () => {
@@ -46,11 +48,24 @@ describe('JwtTokenService', () => {
 
     await expect(
       service.verificarAccessToken(resultado.accessToken),
-    ).resolves.toBe('usuario-123');
+    ).resolves.toEqual({
+      usuarioId: 'usuario-123',
+      sesionId: resultado.sesionId,
+    });
 
     await expect(
       service.verificarRefreshToken(resultado.refreshToken),
-    ).resolves.toBe('usuario-123');
+    ).resolves.toEqual({
+      usuarioId: 'usuario-123',
+      sesionId: resultado.sesionId,
+    });
+
+    const accessPayload = jwtService.decode(resultado.accessToken);
+
+    const refreshPayload = jwtService.decode(resultado.refreshToken);
+
+    expect(accessPayload.sid).toBe(resultado.sesionId);
+    expect(refreshPayload.sid).toBe(resultado.sesionId);
   });
 
   it('no debe aceptar un refresh token como access token', async () => {

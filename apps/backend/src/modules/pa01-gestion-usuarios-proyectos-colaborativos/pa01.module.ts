@@ -23,6 +23,10 @@ import { Sha256RefreshTokenHasher } from './infrastructure/security/sha256-refre
 
 import { IniciarSesionUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/iniciar-sesion.use-case';
 
+import { AccessTokenGuard } from './presentation/guards/access-token.guard';
+
+import { CerrarSesionUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/cerrar-sesion.use-case';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([UsuarioEntity, SesionEntity]),
@@ -52,6 +56,8 @@ import { IniciarSesionUseCase } from './application/use-cases/cu01-gestionar-cue
       useClass: Sha256RefreshTokenHasher,
     },
     IniciarSesionUseCase,
+    AccessTokenGuard,
+    CerrarSesionUseCase,
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })

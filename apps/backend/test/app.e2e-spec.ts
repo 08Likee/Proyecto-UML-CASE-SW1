@@ -347,4 +347,215 @@ describe('Aplicacion (e2e)', () => {
       message: 'Las credenciales proporcionadas no son válidas',
     });
   });
+
+  it('/api/auth/logout revoca la sesión actual', async () => {
+    const correo = 'sw1-e2e-logout@example.test';
+    const contrasena = 'ClaveSegura123!';
+
+    const registro = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const usuarioId = registro.body.id;
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    expect(login.body.refreshToken).toEqual(expect.any(String));
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .send({
+        refreshToken: login.body.refreshToken,
+      })
+      .expect(204);
+
+    const sesiones = await dataSource.query<
+      Array<{
+        fecha_revocacion: Date | null;
+      }>
+    >(
+      `
+      SELECT fecha_revocacion
+      FROM sesion
+      WHERE id_usuario = $1
+      ORDER BY fecha_creacion DESC
+      LIMIT 1
+    `,
+      [usuarioId],
+    );
+
+    expect(sesiones).toHaveLength(1);
+    expect(sesiones[0].fecha_revocacion).not.toBeNull();
+  });
+
+  it('/api/auth/logout rechaza una sesión ya revocada', async () => {
+    const correo = 'sw1-e2e-logout-repetido@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const body = {
+      refreshToken: login.body.refreshToken,
+    };
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .send(body)
+      .expect(204);
+
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .send(body)
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'La sesión no es válida o ya finalizó',
+    });
+  });
+
+  it('/api/auth/logout rechaza un refresh token vacío', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .send({
+        refreshToken: '',
+      })
+      .expect(400);
+
+    expect(response.body.message).toEqual(
+      expect.arrayContaining(['refreshToken should not be empty']),
+    );
+  });
+
+  it('/api/auth/sesion invalida el access token después del logout', async () => {
+    const correo = 'sw1-e2e-sesion-revocada@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    const registro = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const accessToken = login.body.accessToken;
+    const refreshToken = login.body.refreshToken;
+
+    const sesionValida = await request(app.getHttpServer())
+      .get('/api/auth/sesion')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    expect(sesionValida.body).toEqual({
+      autenticado: true,
+      usuarioId: registro.body.id,
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .send({
+        refreshToken,
+      })
+      .expect(204);
+
+    const sesionRevocada = await request(app.getHttpServer())
+      .get('/api/auth/sesion')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(401);
+
+    expect(sesionRevocada.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Token de acceso inválido o expirado',
+    });
+  });
+
+  it('/api/auth/sesion rechaza una petición sin access token', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/auth/sesion')
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Se requiere autenticación',
+    });
+  });
+
+  it('/api/auth/sesion no acepta un refresh token como access token', async () => {
+    const correo = 'sw1-e2e-refresh-como-access@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/auth/sesion')
+      .set('Authorization', `Bearer ${login.body.refreshToken}`)
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Token de acceso inválido o expirado',
+    });
+  });
 });
