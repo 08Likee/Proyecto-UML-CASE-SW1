@@ -48,6 +48,10 @@ import { ModificarPerfilDto } from '../dto/modificar-perfil.dto';
 
 import { ObtenerPerfilUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/obtener-perfil.use-case';
 
+import { CambiarContrasenaUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/cambiar-contrasena.use-case';
+import { ContrasenaActualInvalidaError } from '../../domain/errors/contrasena-actual-invalida.error';
+import { CambiarContrasenaDto } from '../dto/cambiar-contrasena.dto';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -59,6 +63,7 @@ export class AuthController {
     private readonly confirmarRecuperacionUseCase: ConfirmarRecuperacionUseCase,
     private readonly modificarPerfilUseCase: ModificarPerfilUseCase,
     private readonly obtenerPerfilUseCase: ObtenerPerfilUseCase,
+    private readonly cambiarContrasenaUseCase: CambiarContrasenaUseCase,
   ) {}
 
   @Post('registro')
@@ -204,6 +209,40 @@ export class AuthController {
     try {
       return await this.obtenerPerfilUseCase.execute(request.usuarioId!);
     } catch (error: unknown) {
+      if (error instanceof UsuarioNoEncontradoError) {
+        throw new NotFoundException(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  @Put('contrasena')
+  @UseGuards(AccessTokenGuard)
+  async cambiarContrasena(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: CambiarContrasenaDto,
+  ) {
+    try {
+      await this.cambiarContrasenaUseCase.execute({
+        idUsuario: request.usuarioId!,
+        contrasenaActual: dto.contrasenaActual,
+        nuevaContrasena: dto.nuevaContrasena,
+        confirmacionContrasena: dto.confirmacionContrasena,
+      });
+
+      return {
+        message: 'La contraseña fue actualizada correctamente.',
+      };
+    } catch (error: unknown) {
+      if (error instanceof ContrasenasNoCoincidenError) {
+        throw new BadRequestException(error.message);
+      }
+
+      if (error instanceof ContrasenaActualInvalidaError) {
+        throw new UnauthorizedException(error.message);
+      }
+
       if (error instanceof UsuarioNoEncontradoError) {
         throw new NotFoundException(error.message);
       }

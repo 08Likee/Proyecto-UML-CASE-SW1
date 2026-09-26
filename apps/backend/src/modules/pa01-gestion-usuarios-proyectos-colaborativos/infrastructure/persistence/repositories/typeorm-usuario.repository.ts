@@ -118,4 +118,26 @@ export class TypeOrmUsuarioRepository implements UsuarioRepository {
 
     return this.toDomain(guardado);
   }
+
+  async actualizarContrasenaSiCoincide(
+    idUsuario: string,
+    contrasenaHashActual: string,
+    nuevaContrasenaHash: string,
+  ): Promise<boolean> {
+    const resultado = await this.repository
+      .createQueryBuilder()
+      .update(UsuarioEntity)
+      .set({
+        contrasenaHash: nuevaContrasenaHash,
+      })
+      .where('id = :idUsuario', {
+        idUsuario,
+      })
+      .andWhere('contrasena_hash = :contrasenaHashActual', {
+        contrasenaHashActual,
+      })
+      .execute();
+
+    return resultado.affected === 1;
+  }
 }

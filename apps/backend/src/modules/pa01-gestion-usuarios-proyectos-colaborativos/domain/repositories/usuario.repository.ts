@@ -16,6 +16,12 @@ export abstract class UsuarioRepository {
     datos: ActualizarPerfilDatos,
   ): Promise<Usuario | null>;
 
+  abstract actualizarContrasenaSiCoincide(
+    idUsuario: string,
+    contrasenaHashActual: string,
+    nuevaContrasenaHash: string,
+  ): Promise<boolean>;
+
   abstract actualizarUltimaConexion(
     idUsuario: string,
     fecha: Date,

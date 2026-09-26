@@ -45,6 +45,8 @@ import { ModificarPerfilUseCase } from './application/use-cases/cu01-gestionar-c
 
 import { ObtenerPerfilUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/obtener-perfil.use-case';
 
+import { CambiarContrasenaUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/cambiar-contrasena.use-case';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([UsuarioEntity, SesionEntity]),
@@ -115,6 +117,7 @@ import { ObtenerPerfilUseCase } from './application/use-cases/cu01-gestionar-cue
     ModificarPerfilUseCase,
     ObtenerPerfilUseCase,
     ModificarPerfilUseCase,
+    CambiarContrasenaUseCase,
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })

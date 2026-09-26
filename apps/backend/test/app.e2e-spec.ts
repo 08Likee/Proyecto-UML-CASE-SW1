@@ -1146,4 +1146,166 @@ describe('Aplicacion (e2e)', () => {
   it('/api/auth/perfil rechaza una consulta sin autenticación', async () => {
     await request(app.getHttpServer()).get('/api/auth/perfil').expect(401);
   });
+
+  it('/api/auth/contrasena cambia la contraseña del usuario autenticado', async () => {
+    const correo = 'sw1-e2e-cambiar-contrasena@example.test';
+
+    const contrasenaActual = 'ClaveActual123!';
+
+    const nuevaContrasena = 'NuevaClave123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena: contrasenaActual,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: contrasenaActual,
+      })
+      .expect(200);
+
+    const accessToken = login.body.accessToken;
+
+    const response = await request(app.getHttpServer())
+      .put('/api/auth/contrasena')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        contrasenaActual,
+        nuevaContrasena,
+        confirmacionContrasena: nuevaContrasena,
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      message: 'La contraseña fue actualizada correctamente.',
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: contrasenaActual,
+      })
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: nuevaContrasena,
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .get('/api/auth/sesion')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+  });
+
+  it('/api/auth/contrasena rechaza una contraseña actual incorrecta', async () => {
+    const correo = 'sw1-e2e-contrasena-incorrecta@example.test';
+
+    const contrasenaActual = 'ClaveActual123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena: contrasenaActual,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: contrasenaActual,
+      })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .put('/api/auth/contrasena')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .send({
+        contrasenaActual: 'Incorrecta123!',
+        nuevaContrasena: 'NuevaClave123!',
+        confirmacionContrasena: 'NuevaClave123!',
+      })
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'La contraseña actual no es válida',
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: contrasenaActual,
+      })
+      .expect(200);
+  });
+
+  it('/api/auth/contrasena rechaza una confirmación diferente', async () => {
+    const correo = 'sw1-e2e-contrasena-confirmacion@example.test';
+
+    const contrasenaActual = 'ClaveActual123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena: contrasenaActual,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: contrasenaActual,
+      })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .put('/api/auth/contrasena')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .send({
+        contrasenaActual,
+        nuevaContrasena: 'NuevaClave123!',
+        confirmacionContrasena: 'OtraClave123!',
+      })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'La nueva contraseña y su confirmación no coinciden',
+    });
+  });
+
+  it('/api/auth/contrasena rechaza un cambio sin autenticación', async () => {
+    await request(app.getHttpServer())
+      .put('/api/auth/contrasena')
+      .send({
+        contrasenaActual: 'ClaveActual123!',
+        nuevaContrasena: 'NuevaClave123!',
+        confirmacionContrasena: 'NuevaClave123!',
+      })
+      .expect(401);
+  });
 });
