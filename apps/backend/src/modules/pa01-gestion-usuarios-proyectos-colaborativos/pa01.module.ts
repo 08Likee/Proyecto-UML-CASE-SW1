@@ -28,6 +28,15 @@ import { AccessTokenGuard } from './presentation/guards/access-token.guard';
 import { CerrarSesionUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/cerrar-sesion.use-case';
 
 import { RenovarAccesoUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/renovar-acceso.use-case';
+
+import { ConfigService } from '@nestjs/config';
+import { SolicitarRecuperacionUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/solicitar-recuperacion.use-case';
+import { PasswordRecoveryNotifier } from './application/ports/notifications/password-recovery-notifier';
+import { PasswordRecoveryTokenService } from './application/ports/security/password-recovery-token.service';
+import { ConsolePasswordRecoveryNotifier } from './infrastructure/notifications/console-password-recovery-notifier';
+import { SmtpPasswordRecoveryNotifier } from './infrastructure/notifications/smtp-password-recovery-notifier';
+import { JwtPasswordRecoveryTokenService } from './infrastructure/security/jwt-password-recovery-token.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([UsuarioEntity, SesionEntity]),
@@ -60,6 +69,37 @@ import { RenovarAccesoUseCase } from './application/use-cases/cu01-gestionar-cue
     AccessTokenGuard,
     CerrarSesionUseCase,
     RenovarAccesoUseCase,
+
+    SolicitarRecuperacionUseCase,
+
+    {
+      provide: PasswordRecoveryTokenService,
+      useClass: JwtPasswordRecoveryTokenService,
+    },
+
+    {
+      provide: PasswordRecoveryNotifier,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): PasswordRecoveryNotifier => {
+        const modo =
+          configService
+            .get<string>('PASSWORD_RECOVERY_NOTIFIER')
+            ?.trim()
+            .toLowerCase() ?? 'console';
+
+        if (modo === 'console') {
+          return new ConsolePasswordRecoveryNotifier(configService);
+        }
+
+        if (modo === 'smtp') {
+          return new SmtpPasswordRecoveryNotifier(configService);
+        }
+
+        throw new Error(
+          'PASSWORD_RECOVERY_NOTIFIER debe ser "console" o "smtp"',
+        );
+      },
+    },
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })

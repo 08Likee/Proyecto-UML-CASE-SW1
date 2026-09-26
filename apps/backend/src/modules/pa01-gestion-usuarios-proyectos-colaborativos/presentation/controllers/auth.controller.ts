@@ -31,6 +31,9 @@ import {
 import { RenovarAccesoUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/renovar-acceso.use-case';
 import { RenovarAccesoDto } from '../dto/renovar-acceso.dto';
 
+import { SolicitarRecuperacionUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/solicitar-recuperacion.use-case';
+import { SolicitarRecuperacionDto } from '../dto/solicitar-recuperacion.dto';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -38,6 +41,7 @@ export class AuthController {
     private readonly iniciarSesionUseCase: IniciarSesionUseCase,
     private readonly cerrarSesionUseCase: CerrarSesionUseCase,
     private readonly renovarAccesoUseCase: RenovarAccesoUseCase,
+    private readonly solicitarRecuperacionUseCase: SolicitarRecuperacionUseCase,
   ) {}
 
   @Post('registro')
@@ -114,5 +118,18 @@ export class AuthController {
 
       throw error;
     }
+  }
+
+  @Post('recuperacion/solicitar')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async solicitarRecuperacion(@Body() dto: SolicitarRecuperacionDto) {
+    await this.solicitarRecuperacionUseCase.execute({
+      correo: dto.correo,
+    });
+
+    return {
+      message:
+        'Si existe una cuenta asociada al correo, recibirás instrucciones para recuperar el acceso.',
+    };
   }
 }

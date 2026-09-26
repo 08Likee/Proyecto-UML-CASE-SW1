@@ -719,4 +719,57 @@ describe('Aplicacion (e2e)', () => {
       expect.arrayContaining(['refreshToken should not be empty']),
     );
   });
+
+  it('/api/auth/recuperacion/solicitar acepta una cuenta existente', async () => {
+    const correo = 'sw1-e2e-recuperacion@example.test';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena: 'ClaveSegura123!',
+      })
+      .expect(201);
+
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/recuperacion/solicitar')
+      .send({
+        correo: correo.toUpperCase(),
+      })
+      .expect(202);
+
+    expect(response.body).toEqual({
+      message:
+        'Si existe una cuenta asociada al correo, recibirás instrucciones para recuperar el acceso.',
+    });
+  });
+
+  it('/api/auth/recuperacion/solicitar no revela si la cuenta no existe', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/recuperacion/solicitar')
+      .send({
+        correo: 'sw1-e2e-recuperacion-inexistente@example.test',
+      })
+      .expect(202);
+
+    expect(response.body).toEqual({
+      message:
+        'Si existe una cuenta asociada al correo, recibirás instrucciones para recuperar el acceso.',
+    });
+  });
+
+  it('/api/auth/recuperacion/solicitar rechaza un correo inválido', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/recuperacion/solicitar')
+      .send({
+        correo: 'correo-invalido',
+      })
+      .expect(400);
+
+    expect(response.body.message).toEqual(
+      expect.arrayContaining(['correo must be an email']),
+    );
+  });
 });
