@@ -28,12 +28,16 @@ import {
   type AuthenticatedRequest,
 } from '../guards/access-token.guard';
 
+import { RenovarAccesoUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/renovar-acceso.use-case';
+import { RenovarAccesoDto } from '../dto/renovar-acceso.dto';
+
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly registrarCuentaUseCase: RegistrarCuentaUseCase,
     private readonly iniciarSesionUseCase: IniciarSesionUseCase,
     private readonly cerrarSesionUseCase: CerrarSesionUseCase,
+    private readonly renovarAccesoUseCase: RenovarAccesoUseCase,
   ) {}
 
   @Post('registro')
@@ -96,5 +100,19 @@ export class AuthController {
       autenticado: true,
       usuarioId: request.usuarioId,
     };
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  async renovarAcceso(@Body() dto: RenovarAccesoDto) {
+    try {
+      return await this.renovarAccesoUseCase.execute(dto.refreshToken);
+    } catch (error: unknown) {
+      if (error instanceof SesionInvalidaError) {
+        throw new UnauthorizedException(error.message);
+      }
+
+      throw error;
+    }
   }
 }

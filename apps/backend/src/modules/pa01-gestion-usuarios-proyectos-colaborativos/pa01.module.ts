@@ -27,6 +27,7 @@ import { AccessTokenGuard } from './presentation/guards/access-token.guard';
 
 import { CerrarSesionUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/cerrar-sesion.use-case';
 
+import { RenovarAccesoUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/renovar-acceso.use-case';
 @Module({
   imports: [
     TypeOrmModule.forFeature([UsuarioEntity, SesionEntity]),
@@ -58,6 +59,7 @@ import { CerrarSesionUseCase } from './application/use-cases/cu01-gestionar-cuen
     IniciarSesionUseCase,
     AccessTokenGuard,
     CerrarSesionUseCase,
+    RenovarAccesoUseCase,
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })

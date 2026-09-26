@@ -75,4 +75,18 @@ describe('JwtTokenService', () => {
       service.verificarAccessToken(resultado.refreshToken),
     ).rejects.toThrow();
   });
+
+  it('debe generar un nuevo access token para una sesión existente', async () => {
+    const accessToken = await service.generarAccessToken(
+      'usuario-123',
+      'sesion-456',
+    );
+
+    expect(accessToken).toEqual(expect.any(String));
+
+    await expect(service.verificarAccessToken(accessToken)).resolves.toEqual({
+      usuarioId: 'usuario-123',
+      sesionId: 'sesion-456',
+    });
+  });
 });

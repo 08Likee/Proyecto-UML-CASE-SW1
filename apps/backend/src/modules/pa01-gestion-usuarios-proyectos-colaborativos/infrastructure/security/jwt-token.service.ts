@@ -40,15 +40,10 @@ export class JwtTokenService implements TokenService {
       'JWT_REFRESH_TTL_SECONDS',
     );
   }
-
   async generarTokens(usuarioId: string): Promise<TokensGenerados> {
     const sesionId = randomUUID();
-    const accessPayload: JwtClaims = {
-      sub: usuarioId,
-      sid: sesionId,
-      tipo: 'access',
-      jti: randomUUID(),
-    };
+
+    const accessToken = await this.generarAccessToken(usuarioId, sesionId);
 
     const refreshPayload: JwtClaims = {
       sub: usuarioId,
@@ -57,16 +52,10 @@ export class JwtTokenService implements TokenService {
       jti: randomUUID(),
     };
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(accessPayload, {
-        secret: this.accessSecret,
-        expiresIn: this.accessTtlSeconds,
-      }),
-      this.jwtService.signAsync(refreshPayload, {
-        secret: this.refreshSecret,
-        expiresIn: this.refreshTtlSeconds,
-      }),
-    ]);
+    const refreshToken = await this.jwtService.signAsync(refreshPayload, {
+      secret: this.refreshSecret,
+      expiresIn: this.refreshTtlSeconds,
+    });
 
     return {
       sesionId,
@@ -128,5 +117,22 @@ export class JwtTokenService implements TokenService {
     }
 
     return value;
+  }
+
+  async generarAccessToken(
+    usuarioId: string,
+    sesionId: string,
+  ): Promise<string> {
+    const payload: JwtClaims = {
+      sub: usuarioId,
+      sid: sesionId,
+      tipo: 'access',
+      jti: randomUUID(),
+    };
+
+    return this.jwtService.signAsync(payload, {
+      secret: this.accessSecret,
+      expiresIn: this.accessTtlSeconds,
+    });
   }
 }

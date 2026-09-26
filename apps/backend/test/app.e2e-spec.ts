@@ -558,4 +558,165 @@ describe('Aplicacion (e2e)', () => {
       message: 'Token de acceso inválido o expirado',
     });
   });
+
+  it('/api/auth/refresh renueva el access token de una sesión válida', async () => {
+    const correo = 'sw1-e2e-refresh-valido@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    const registro = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const usuarioId = registro.body.id;
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const accessTokenAnterior = login.body.accessToken;
+
+    const refreshToken = login.body.refreshToken;
+
+    const sesionesAntes = await dataSource.query<
+      Array<{
+        id: string;
+        fecha_expiracion: Date;
+        fecha_revocacion: Date | null;
+      }>
+    >(
+      `
+      SELECT
+        id,
+        fecha_expiracion,
+        fecha_revocacion
+      FROM sesion
+      WHERE id_usuario = $1
+    `,
+      [usuarioId],
+    );
+
+    expect(sesionesAntes).toHaveLength(1);
+
+    const sesionIdOriginal = sesionesAntes[0].id;
+
+    const expiracionOriginal = new Date(
+      sesionesAntes[0].fecha_expiracion,
+    ).getTime();
+
+    expect(sesionesAntes[0].fecha_revocacion).toBeNull();
+
+    const renovacion = await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .send({
+        refreshToken,
+      })
+      .expect(200);
+
+    expect(renovacion.body.accessToken).toEqual(expect.any(String));
+
+    expect(renovacion.body.accessToken).not.toBe(accessTokenAnterior);
+
+    await request(app.getHttpServer())
+      .get('/api/auth/sesion')
+      .set('Authorization', `Bearer ${renovacion.body.accessToken}`)
+      .expect(200);
+
+    const sesionesDespues = await dataSource.query<
+      Array<{
+        id: string;
+        fecha_expiracion: Date;
+        fecha_revocacion: Date | null;
+      }>
+    >(
+      `
+      SELECT
+        id,
+        fecha_expiracion,
+        fecha_revocacion
+      FROM sesion
+      WHERE id_usuario = $1
+    `,
+      [usuarioId],
+    );
+
+    expect(sesionesDespues).toHaveLength(1);
+
+    expect(sesionesDespues[0].id).toBe(sesionIdOriginal);
+
+    expect(new Date(sesionesDespues[0].fecha_expiracion).getTime()).toBe(
+      expiracionOriginal,
+    );
+
+    expect(sesionesDespues[0].fecha_revocacion).toBeNull();
+  });
+
+  it('/api/auth/refresh rechaza una sesión revocada', async () => {
+    const correo = 'sw1-e2e-refresh-revocado@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const refreshToken = login.body.refreshToken;
+
+    await request(app.getHttpServer())
+      .post('/api/auth/logout')
+      .send({
+        refreshToken,
+      })
+      .expect(204);
+
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .send({
+        refreshToken,
+      })
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'La sesión no es válida o ya finalizó',
+    });
+  });
+
+  it('/api/auth/refresh rechaza un refresh token vacío', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .send({
+        refreshToken: '',
+      })
+      .expect(400);
+
+    expect(response.body.message).toEqual(
+      expect.arrayContaining(['refreshToken should not be empty']),
+    );
+  });
 });

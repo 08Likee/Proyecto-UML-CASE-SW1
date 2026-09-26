@@ -13,6 +13,11 @@ export interface TokensGenerados {
 export abstract class TokenService {
   abstract generarTokens(usuarioId: string): Promise<TokensGenerados>;
 
+  abstract generarAccessToken(
+    usuarioId: string,
+    sesionId: string,
+  ): Promise<string>;
+
   abstract verificarAccessToken(token: string): Promise<TokenIdentity>;
 
   abstract verificarRefreshToken(token: string): Promise<TokenIdentity>;
