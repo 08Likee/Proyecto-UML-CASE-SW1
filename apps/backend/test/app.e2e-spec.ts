@@ -34,12 +34,35 @@ describe('Aplicacion (e2e)', () => {
   async function limpiarUsuariosDePrueba(): Promise<void> {
     await dataSource.query(
       `
+      DELETE FROM permiso_membresia
+      WHERE id_membresia IN (
+      SELECT m.id
+      FROM membresia m
+      INNER JOIN proyecto p
+      ON p.id = m.id_proyecto
+      WHERE p.nombre LIKE $1)
+    `,
+      [testProjectNamePattern],
+    );
+
+    await dataSource.query(
+      `
+      DELETE FROM invitacion
+      WHERE id_proyecto IN (
+      SELECT id
+      FROM proyecto
+      WHERE nombre LIKE $1)
+    `,
+      [testProjectNamePattern],
+    );
+
+    await dataSource.query(
+      `
       DELETE FROM membresia
       WHERE id_proyecto IN (
-        SELECT id
-        FROM proyecto
-        WHERE nombre LIKE $1
-      )
+      SELECT id
+      FROM proyecto
+      WHERE nombre LIKE $1)
     `,
       [testProjectNamePattern],
     );
@@ -48,10 +71,9 @@ describe('Aplicacion (e2e)', () => {
       `
       DELETE FROM rol
       WHERE id_proyecto IN (
-        SELECT id
-        FROM proyecto
-        WHERE nombre LIKE $1
-      )
+      SELECT id
+      FROM proyecto
+      WHERE nombre LIKE $1)
     `,
       [testProjectNamePattern],
     );
@@ -1599,5 +1621,319 @@ describe('Aplicacion (e2e)', () => {
         nombre: 'SW1-E2E-CU02-No-Permitido',
       })
       .expect(403);
+  });
+
+  it('/api/proyectos permite al Anfitrión crear un rol personalizado con permisos', async () => {
+    const correo = 'sw1-e2e-cu03-roles@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const token = login.body.accessToken;
+
+    const proyecto = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre: 'SW1-E2E-CU03-Roles',
+      })
+      .expect(201);
+
+    const permisos = await request(app.getHttpServer())
+      .get(`/api/proyectos/${proyecto.body.id}/permisos`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(permisos.body.length).toBeGreaterThan(0);
+
+    const permisoConsultar = permisos.body.find(
+      (permiso: { recurso: string; accion: string }) =>
+        permiso.recurso === 'PROYECTO' && permiso.accion === 'CONSULTAR',
+    );
+
+    expect(permisoConsultar).toBeDefined();
+
+    const rol = await request(app.getHttpServer())
+      .post(`/api/proyectos/${proyecto.body.id}/roles`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre: 'Editor UML',
+        descripcion: 'Rol personalizado E2E',
+        permisosIds: [permisoConsultar.id],
+      })
+      .expect(201);
+
+    expect(rol.body).toMatchObject({
+      nombre: 'Editor UML',
+      esPredeterminado: false,
+      estado: 'ACTIVO',
+      idProyecto: proyecto.body.id,
+    });
+
+    const roles = await request(app.getHttpServer())
+      .get(`/api/proyectos/${proyecto.body.id}/roles`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(
+      roles.body.some((item: { id: string }) => item.id === rol.body.id),
+    ).toBe(true);
+
+    const asociaciones = await dataSource.query<
+      Array<{
+        recurso: string;
+        accion: string;
+      }>
+    >(
+      `
+        SELECT
+          p.recurso,
+          p.accion
+        FROM rol_permiso rp
+        INNER JOIN permiso p
+          ON p.id = rp.id_permiso
+        WHERE rp.id_rol = $1
+      `,
+      [rol.body.id],
+    );
+
+    expect(asociaciones).toEqual([
+      {
+        recurso: 'PROYECTO',
+        accion: 'CONSULTAR',
+      },
+    ]);
+  });
+
+  it('/api/proyectos gestiona invitaciones, participantes, roles y permisos particulares', async () => {
+    const contrasena = 'ClaveSegura123!';
+
+    const registroHost = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Host',
+        apellido: 'CU03',
+        correo: 'sw1-e2e-cu03-host@example.test',
+        contrasena,
+      })
+      .expect(201);
+
+    const registroInvitado = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Invitado',
+        apellido: 'CU03',
+        correo: 'sw1-e2e-cu03-invitado@example.test',
+        contrasena,
+      })
+      .expect(201);
+
+    const loginHost = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo: 'sw1-e2e-cu03-host@example.test',
+        contrasena,
+      })
+      .expect(200);
+
+    const token = loginHost.body.accessToken;
+
+    const proyecto = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre: 'SW1-E2E-CU03-Participantes',
+      })
+      .expect(201);
+
+    const idProyecto = proyecto.body.id;
+
+    const permisos = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/permisos`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const permisoConsultarProyecto = permisos.body.find(
+      (permiso: { id: string; recurso: string; accion: string }) =>
+        permiso.recurso === 'PROYECTO' && permiso.accion === 'CONSULTAR',
+    );
+
+    expect(permisoConsultarProyecto).toBeDefined();
+
+    const rolEditor = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/roles`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre: 'Editor CU03 E2E',
+        permisosIds: [permisoConsultarProyecto.id],
+      })
+      .expect(201);
+
+    const invitacion = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/invitaciones`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        correo: 'sw1-e2e-cu03-invitado@example.test',
+        idRol: rolEditor.body.id,
+      })
+      .expect(201);
+
+    expect(invitacion.body).toMatchObject({
+      estado: 'PENDIENTE',
+      idProyecto,
+      idUsuario: registroInvitado.body.id,
+      idRol: rolEditor.body.id,
+    });
+
+    expect(invitacion.body).not.toHaveProperty('token');
+
+    await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/invitaciones`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        correo: 'sw1-e2e-cu03-invitado@example.test',
+        idRol: rolEditor.body.id,
+      })
+      .expect(409);
+
+    /*
+     * CU-04 será responsable de aceptar
+     * realmente la invitación.
+     *
+     * Para probar las operaciones de CU-03
+     * bajo su precondición de "participante
+     * existente", simulamos aquí una
+     * invitación ya aceptada.
+     */
+    await dataSource.query(
+      `
+      UPDATE invitacion
+      SET
+        estado = 'ACEPTADA',
+        fecha_aceptacion =
+          CURRENT_TIMESTAMP
+      WHERE id = $1
+    `,
+      [invitacion.body.id],
+    );
+
+    const membresias = await dataSource.query<
+      Array<{
+        id: string;
+      }>
+    >(
+      `
+        INSERT INTO membresia (
+          id_usuario,
+          id_proyecto,
+          id_rol
+        )
+        VALUES ($1, $2, $3)
+        RETURNING id
+      `,
+      [registroInvitado.body.id, idProyecto, rolEditor.body.id],
+    );
+
+    const idMembresiaInvitado = membresias[0].id;
+
+    const participantes = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/participantes`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(
+      participantes.body.some(
+        (participante: { idMembresia: string; correo: string }) =>
+          participante.idMembresia === idMembresiaInvitado &&
+          participante.correo === 'sw1-e2e-cu03-invitado@example.test',
+      ),
+    ).toBe(true);
+
+    const rolObservador = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/roles`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre: 'Observador CU03 E2E',
+        permisosIds: [permisoConsultarProyecto.id],
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .put(
+        `/api/proyectos/${idProyecto}/participantes/${idMembresiaInvitado}/rol`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        idRol: rolObservador.body.id,
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .put(
+        `/api/proyectos/${idProyecto}/participantes/${idMembresiaInvitado}/permisos/${permisoConsultarProyecto.id}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        tipoAsignacion: 'DENEGAR',
+      })
+      .expect(200);
+
+    const permisosEfectivos = await request(app.getHttpServer())
+      .get(
+        `/api/proyectos/${idProyecto}/participantes/${idMembresiaInvitado}/permisos`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    const consultarProyecto = permisosEfectivos.body.find(
+      (permiso: { idPermiso: string; permitido: boolean; fuente: string }) =>
+        permiso.idPermiso === permisoConsultarProyecto.id,
+    );
+
+    expect(consultarProyecto).toMatchObject({
+      permitido: false,
+      fuente: 'DENEGAR',
+    });
+
+    await request(app.getHttpServer())
+      .delete(
+        `/api/proyectos/${idProyecto}/participantes/${idMembresiaInvitado}`,
+      )
+      .set('Authorization', `Bearer ${token}`)
+      .expect(204);
+
+    const membresiaRetirada = await dataSource.query<
+      Array<{
+        estado: string;
+      }>
+    >(
+      `
+        SELECT estado
+        FROM membresia
+        WHERE id = $1
+      `,
+      [idMembresiaInvitado],
+    );
+
+    expect(membresiaRetirada[0].estado).toBe('RETIRADA');
+
+    expect(registroHost.body.id).toBeDefined();
   });
 });

@@ -59,6 +59,31 @@ import { ListarProyectosUseCase } from './application/use-cases/cu02-gestionar-p
 import { ModificarProyectoUseCase } from './application/use-cases/cu02-gestionar-proyecto-colaborativo/modificar-proyecto.use-case';
 import { ObtenerProyectoUseCase } from './application/use-cases/cu02-gestionar-proyecto-colaborativo/obtener-proyecto.use-case';
 
+import { CrearRolPersonalizadoUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/crear-rol-personalizado.use-case';
+import { ListarPermisosUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/listar-permisos.use-case';
+import { ListarRolesUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/listar-roles.use-case';
+import { AutorizacionProyectoService } from './application/services/autorizacion-proyecto.service';
+import { InvitacionEntity } from './infrastructure/persistence/entities/invitacion.entity';
+import { PermisoEntity } from './infrastructure/persistence/entities/permiso.entity';
+import { PermisoMembresiaEntity } from './infrastructure/persistence/entities/permiso-membresia.entity';
+import { RolPermisoEntity } from './infrastructure/persistence/entities/rol-permiso.entity';
+import { TypeOrmAutorizacionProyectoRepository } from './infrastructure/persistence/repositories/typeorm-autorizacion-proyecto.repository';
+import { TypeOrmRolRepository } from './infrastructure/persistence/repositories/typeorm-rol.repository';
+import { ParticipantesRolesController } from './presentation/controllers/participantes-roles.controller';
+import { AutorizacionProyectoRepository } from './domain/repositories/autorizacion-proyecto.repository';
+import { RolRepository } from './domain/repositories/rol.repository';
+
+import { AsignarPermisoParticularUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/asignar-permiso-particular.use-case';
+import { CambiarRolParticipanteUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/cambiar-rol-participante.use-case';
+import { InvitarParticipanteUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/invitar-participante.use-case';
+import { ListarParticipantesUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/listar-participantes.use-case';
+import { ObtenerPermisosParticipanteUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/obtener-permisos-participante.use-case';
+import { RetirarParticipanteUseCase } from './application/use-cases/cu03-gestionar-participantes-roles/retirar-participante.use-case';
+
+import { ParticipanteRepository } from './domain/repositories/participante.repository';
+
+import { TypeOrmParticipanteRepository } from './infrastructure/persistence/repositories/typeorm-participante.repository';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -67,10 +92,18 @@ import { ObtenerProyectoUseCase } from './application/use-cases/cu02-gestionar-p
       ProyectoEntity,
       RolEntity,
       MembresiaEntity,
+      PermisoEntity,
+      RolPermisoEntity,
+      PermisoMembresiaEntity,
+      InvitacionEntity,
     ]),
     JwtModule.register({}),
   ],
-  controllers: [AuthController, ProyectosController],
+  controllers: [
+    AuthController,
+    ProyectosController,
+    ParticipantesRolesController,
+  ],
   providers: [
     {
       provide: UsuarioRepository,
@@ -144,6 +177,30 @@ import { ObtenerProyectoUseCase } from './application/use-cases/cu02-gestionar-p
     ListarProyectosUseCase,
     ObtenerProyectoUseCase,
     ModificarProyectoUseCase,
+    {
+      provide: AutorizacionProyectoRepository,
+      useClass: TypeOrmAutorizacionProyectoRepository,
+    },
+    {
+      provide: RolRepository,
+      useClass: TypeOrmRolRepository,
+    },
+    AutorizacionProyectoService,
+    ListarRolesUseCase,
+    ListarPermisosUseCase,
+    CrearRolPersonalizadoUseCase,
+
+    {
+      provide: ParticipanteRepository,
+      useClass: TypeOrmParticipanteRepository,
+    },
+
+    ListarParticipantesUseCase,
+    InvitarParticipanteUseCase,
+    CambiarRolParticipanteUseCase,
+    RetirarParticipanteUseCase,
+    ObtenerPermisosParticipanteUseCase,
+    AsignarPermisoParticularUseCase,
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })

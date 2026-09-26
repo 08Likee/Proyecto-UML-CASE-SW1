@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { OperacionProyectoNoAutorizadaError } from '../../../domain/errors/operacion-proyecto-no-autorizada.error';
+
+import { AutorizacionProyectoService } from '../../services/autorizacion-proyecto.service';
 import { ProyectoNoEncontradoError } from '../../../domain/errors/proyecto-no-encontrado.error';
+import { PERMISOS } from '../../../domain/models/permiso';
 import { type Proyecto } from '../../../domain/models/proyecto';
 import { ProyectoRepository } from '../../../domain/repositories/proyecto.repository';
 
@@ -14,7 +16,11 @@ export interface ModificarProyectoEntrada {
 
 @Injectable()
 export class ModificarProyectoUseCase {
-  constructor(private readonly proyectoRepository: ProyectoRepository) {}
+  constructor(
+    private readonly proyectoRepository: ProyectoRepository,
+
+    private readonly autorizacion: AutorizacionProyectoService,
+  ) {}
 
   async execute(entrada: ModificarProyectoEntrada): Promise<Proyecto> {
     const proyecto = await this.proyectoRepository.buscarPorId(
@@ -25,14 +31,12 @@ export class ModificarProyectoUseCase {
       throw new ProyectoNoEncontradoError();
     }
 
-    const esAnfitrion = await this.proyectoRepository.esAnfitrionActivo(
-      entrada.idProyecto,
+    await this.autorizacion.exigirPermiso(
       entrada.idUsuario,
+      entrada.idProyecto,
+      PERMISOS.PROYECTO.MODIFICAR.recurso,
+      PERMISOS.PROYECTO.MODIFICAR.accion,
     );
-
-    if (!esAnfitrion) {
-      throw new OperacionProyectoNoAutorizadaError();
-    }
 
     const descripcion =
       entrada.descripcion === undefined

@@ -22,6 +22,8 @@ import { MembresiaEntity } from '../entities/membresia.entity';
 import { ProyectoEntity } from '../entities/proyecto.entity';
 import { RolEntity } from '../entities/rol.entity';
 
+import { RolPermisoEntity } from '../entities/rol-permiso.entity';
+
 @Injectable()
 export class TypeOrmProyectoRepository implements ProyectoRepository {
   constructor(private readonly dataSource: DataSource) {}
@@ -52,6 +54,25 @@ export class TypeOrmProyectoRepository implements ProyectoRepository {
           idProyecto: proyecto.id,
         }),
       );
+
+      const permisos = await manager.query<
+        Array<{
+          id: string;
+        }>
+      >(`
+    SELECT id
+    FROM permiso
+    WHERE estado = 'ACTIVO'
+  `);
+
+      if (permisos.length > 0) {
+        await manager.getRepository(RolPermisoEntity).save(
+          permisos.map((permiso) => ({
+            idRol: rolAnfitrion.id,
+            idPermiso: permiso.id,
+          })),
+        );
+      }
 
       const membresia = await membresiaRepository.save(
         membresiaRepository.create({
