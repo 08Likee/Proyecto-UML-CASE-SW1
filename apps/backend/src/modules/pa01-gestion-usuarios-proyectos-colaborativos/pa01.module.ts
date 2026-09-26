@@ -84,6 +84,15 @@ import { ParticipanteRepository } from './domain/repositories/participante.repos
 
 import { TypeOrmParticipanteRepository } from './infrastructure/persistence/repositories/typeorm-participante.repository';
 
+import { AccederProyectoUseCase } from './application/use-cases/cu04-acceder-proyecto-colaborativo/acceder-proyecto.use-case';
+import { AceptarInvitacionUseCase } from './application/use-cases/cu04-acceder-proyecto-colaborativo/aceptar-invitacion.use-case';
+import { ListarInvitacionesUseCase } from './application/use-cases/cu04-acceder-proyecto-colaborativo/listar-invitaciones.use-case';
+import { RechazarInvitacionUseCase } from './application/use-cases/cu04-acceder-proyecto-colaborativo/rechazar-invitacion.use-case';
+
+import { AccesoProyectoRepository } from './domain/repositories/acceso-proyecto.repository';
+import { TypeOrmAccesoProyectoRepository } from './infrastructure/persistence/repositories/typeorm-acceso-proyecto.repository';
+import { AccesoProyectoController } from './presentation/controllers/acceso-proyecto.controller';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -103,6 +112,7 @@ import { TypeOrmParticipanteRepository } from './infrastructure/persistence/repo
     AuthController,
     ProyectosController,
     ParticipantesRolesController,
+    AccesoProyectoController,
   ],
   providers: [
     {
@@ -201,6 +211,16 @@ import { TypeOrmParticipanteRepository } from './infrastructure/persistence/repo
     RetirarParticipanteUseCase,
     ObtenerPermisosParticipanteUseCase,
     AsignarPermisoParticularUseCase,
+
+    {
+      provide: AccesoProyectoRepository,
+      useClass: TypeOrmAccesoProyectoRepository,
+    },
+
+    ListarInvitacionesUseCase,
+    AceptarInvitacionUseCase,
+    RechazarInvitacionUseCase,
+    AccederProyectoUseCase,
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })

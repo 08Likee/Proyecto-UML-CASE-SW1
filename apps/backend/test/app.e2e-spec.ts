@@ -1936,4 +1936,239 @@ describe('Aplicacion (e2e)', () => {
 
     expect(registroHost.body.id).toBeDefined();
   });
+
+  it('/api/invitaciones permite aceptar, rechazar y acceder al proyecto con permisos efectivos', async () => {
+    const contrasena = 'ClaveSegura123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Host',
+        apellido: 'CU04',
+        correo: 'sw1-e2e-cu04-host@example.test',
+        contrasena,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Invitado',
+        apellido: 'CU04',
+        correo: 'sw1-e2e-cu04-invitado@example.test',
+        contrasena,
+      })
+      .expect(201);
+
+    const loginHost = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo: 'sw1-e2e-cu04-host@example.test',
+        contrasena,
+      })
+      .expect(200);
+
+    const tokenHost = loginHost.body.accessToken;
+
+    const loginInvitado = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo: 'sw1-e2e-cu04-invitado@example.test',
+        contrasena,
+      })
+      .expect(200);
+
+    const tokenInvitado = loginInvitado.body.accessToken;
+
+    const proyecto = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'SW1-E2E-CU04-Aceptar',
+      })
+      .expect(201);
+
+    const idProyecto = proyecto.body.id;
+
+    const permisos = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/permisos`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    const permisoConsultar = permisos.body.find(
+      (permiso: { id: string; recurso: string; accion: string }) =>
+        permiso.recurso === 'PROYECTO' && permiso.accion === 'CONSULTAR',
+    );
+
+    expect(permisoConsultar).toBeDefined();
+
+    const rolInvitado = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/roles`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Lector CU04 E2E',
+        permisosIds: [permisoConsultar.id],
+      })
+      .expect(201);
+
+    const invitacion = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/invitaciones`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        correo: 'sw1-e2e-cu04-invitado@example.test',
+        idRol: rolInvitado.body.id,
+      })
+      .expect(201);
+
+    /*
+     * Antes de aceptar no debe existir
+     * acceso al proyecto.
+     */
+    await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/acceso`)
+      .set('Authorization', `Bearer ${tokenInvitado}`)
+      .expect(403);
+
+    const recibidas = await request(app.getHttpServer())
+      .get('/api/invitaciones')
+      .set('Authorization', `Bearer ${tokenInvitado}`)
+      .expect(200);
+
+    expect(
+      recibidas.body.some(
+        (item: { id: string; proyectoNombre: string; rolNombre: string }) =>
+          item.id === invitacion.body.id &&
+          item.proyectoNombre === 'SW1-E2E-CU04-Aceptar' &&
+          item.rolNombre === 'Lector CU04 E2E',
+      ),
+    ).toBe(true);
+
+    const aceptacion = await request(app.getHttpServer())
+      .post(`/api/invitaciones/${invitacion.body.id}/aceptar`)
+      .set('Authorization', `Bearer ${tokenInvitado}`)
+      .expect(201);
+
+    expect(aceptacion.body).toMatchObject({
+      idInvitacion: invitacion.body.id,
+      idProyecto,
+      idRol: rolInvitado.body.id,
+    });
+
+    expect(aceptacion.body.idMembresia).toBeDefined();
+
+    /*
+     * Una invitación aceptada no puede
+     * aceptarse nuevamente.
+     */
+    await request(app.getHttpServer())
+      .post(`/api/invitaciones/${invitacion.body.id}/aceptar`)
+      .set('Authorization', `Bearer ${tokenInvitado}`)
+      .expect(409);
+
+    const acceso = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/acceso`)
+      .set('Authorization', `Bearer ${tokenInvitado}`)
+      .expect(200);
+
+    expect(acceso.body.proyecto).toMatchObject({
+      id: idProyecto,
+      nombre: 'SW1-E2E-CU04-Aceptar',
+      estado: 'ACTIVO',
+    });
+
+    expect(acceso.body.rol).toMatchObject({
+      id: rolInvitado.body.id,
+      nombre: 'Lector CU04 E2E',
+      esPredeterminado: false,
+    });
+
+    const permisoEfectivo = acceso.body.permisos.find(
+      (permiso: { idPermiso: string; permitido: boolean; fuente: string }) =>
+        permiso.idPermiso === permisoConsultar.id,
+    );
+
+    expect(permisoEfectivo).toMatchObject({
+      permitido: true,
+      fuente: 'ROL',
+    });
+
+    /*
+     * Probamos también rechazo usando un
+     * segundo proyecto, porque el mismo
+     * usuario ya es miembro del primero.
+     */
+    const proyectoRechazo = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'SW1-E2E-CU04-Rechazar',
+      })
+      .expect(201);
+
+    const rolesRechazo = await request(app.getHttpServer())
+      .get(`/api/proyectos/${proyectoRechazo.body.id}/roles`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    /*
+     * Creamos un rol asignable.
+     */
+    const permisosRechazo = await request(app.getHttpServer())
+      .get(`/api/proyectos/${proyectoRechazo.body.id}/permisos`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    const permisoRechazo = permisosRechazo.body.find(
+      (permiso: { id: string; recurso: string; accion: string }) =>
+        permiso.recurso === 'PROYECTO' && permiso.accion === 'CONSULTAR',
+    );
+
+    const rolRechazo = await request(app.getHttpServer())
+      .post(`/api/proyectos/${proyectoRechazo.body.id}/roles`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Rol rechazo CU04',
+        permisosIds: [permisoRechazo.id],
+      })
+      .expect(201);
+
+    expect(rolesRechazo.body.length).toBeGreaterThan(0);
+
+    const invitacionRechazo = await request(app.getHttpServer())
+      .post(`/api/proyectos/${proyectoRechazo.body.id}/invitaciones`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        correo: 'sw1-e2e-cu04-invitado@example.test',
+        idRol: rolRechazo.body.id,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/invitaciones/${invitacionRechazo.body.id}/rechazar`)
+      .set('Authorization', `Bearer ${tokenInvitado}`)
+      .expect(201);
+
+    const membresiaRechazada = await dataSource.query<
+      Array<{
+        cantidad: string;
+      }>
+    >(
+      `
+        SELECT COUNT(*)::text
+          AS cantidad
+        FROM membresia
+        WHERE
+          id_usuario = (
+            SELECT id
+            FROM usuario
+            WHERE correo =
+              'sw1-e2e-cu04-invitado@example.test'
+          )
+          AND id_proyecto = $1
+      `,
+      [proyectoRechazo.body.id],
+    );
+
+    expect(membresiaRechazada[0].cantidad).toBe('0');
+  });
 });
