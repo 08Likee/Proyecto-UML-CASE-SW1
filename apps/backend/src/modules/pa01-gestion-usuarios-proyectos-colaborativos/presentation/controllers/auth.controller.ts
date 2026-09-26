@@ -3,6 +3,7 @@ import { RegistrarCuentaUseCase } from '../../application/use-cases/cu01-gestion
 import { RegistrarCuentaDto } from '../dto/registrar-cuenta.dto';
 
 import {
+  BadRequestException,
   Body,
   ConflictException,
   Controller,
@@ -34,6 +35,11 @@ import { RenovarAccesoDto } from '../dto/renovar-acceso.dto';
 import { SolicitarRecuperacionUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/solicitar-recuperacion.use-case';
 import { SolicitarRecuperacionDto } from '../dto/solicitar-recuperacion.dto';
 
+import { ConfirmarRecuperacionUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/confirmar-recuperacion.use-case';
+import { ContrasenasNoCoincidenError } from '../../domain/errors/contrasenas-no-coinciden.error';
+import { RecuperacionInvalidaError } from '../../domain/errors/recuperacion-invalida.error';
+import { ConfirmarRecuperacionDto } from '../dto/confirmar-recuperacion.dto';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -42,6 +48,7 @@ export class AuthController {
     private readonly cerrarSesionUseCase: CerrarSesionUseCase,
     private readonly renovarAccesoUseCase: RenovarAccesoUseCase,
     private readonly solicitarRecuperacionUseCase: SolicitarRecuperacionUseCase,
+    private readonly confirmarRecuperacionUseCase: ConfirmarRecuperacionUseCase,
   ) {}
 
   @Post('registro')
@@ -131,5 +138,31 @@ export class AuthController {
       message:
         'Si existe una cuenta asociada al correo, recibirás instrucciones para recuperar el acceso.',
     };
+  }
+
+  @Post('recuperacion/confirmar')
+  @HttpCode(HttpStatus.OK)
+  async confirmarRecuperacion(@Body() dto: ConfirmarRecuperacionDto) {
+    try {
+      await this.confirmarRecuperacionUseCase.execute({
+        token: dto.token,
+        nuevaContrasena: dto.nuevaContrasena,
+        confirmacionContrasena: dto.confirmacionContrasena,
+      });
+
+      return {
+        message: 'La contraseña fue actualizada correctamente.',
+      };
+    } catch (error: unknown) {
+      if (error instanceof ContrasenasNoCoincidenError) {
+        throw new BadRequestException(error.message);
+      }
+
+      if (error instanceof RecuperacionInvalidaError) {
+        throw new UnauthorizedException(error.message);
+      }
+
+      throw error;
+    }
   }
 }

@@ -37,6 +37,10 @@ import { ConsolePasswordRecoveryNotifier } from './infrastructure/notifications/
 import { SmtpPasswordRecoveryNotifier } from './infrastructure/notifications/smtp-password-recovery-notifier';
 import { JwtPasswordRecoveryTokenService } from './infrastructure/security/jwt-password-recovery-token.service';
 
+import { RecuperacionCuentaRepository } from './application/ports/persistence/recuperacion-cuenta.repository';
+import { ConfirmarRecuperacionUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/confirmar-recuperacion.use-case';
+import { TypeOrmRecuperacionCuentaRepository } from './infrastructure/persistence/repositories/typeorm-recuperacion-cuenta.repository';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([UsuarioEntity, SesionEntity]),
@@ -90,16 +94,20 @@ import { JwtPasswordRecoveryTokenService } from './infrastructure/security/jwt-p
         if (modo === 'console') {
           return new ConsolePasswordRecoveryNotifier(configService);
         }
-
         if (modo === 'smtp') {
           return new SmtpPasswordRecoveryNotifier(configService);
         }
-
         throw new Error(
           'PASSWORD_RECOVERY_NOTIFIER debe ser "console" o "smtp"',
         );
       },
     },
+
+    {
+      provide: RecuperacionCuentaRepository,
+      useClass: TypeOrmRecuperacionCuentaRepository,
+    },
+    ConfirmarRecuperacionUseCase,
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })

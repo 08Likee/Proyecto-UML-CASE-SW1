@@ -5,9 +5,27 @@ import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/configure-app';
 
+import {
+  PasswordRecoveryNotifier,
+  type PasswordRecoveryNotification,
+} from '../src/modules/pa01-gestion-usuarios-proyectos-colaborativos/application/ports/notifications/password-recovery-notifier';
+
+class PasswordRecoveryNotifierFake extends PasswordRecoveryNotifier {
+  ultimaNotificacion: PasswordRecoveryNotification | null = null;
+
+  async enviar(datos: PasswordRecoveryNotification): Promise<void> {
+    this.ultimaNotificacion = datos;
+  }
+
+  limpiar(): void {
+    this.ultimaNotificacion = null;
+  }
+}
+
 describe('Aplicacion (e2e)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
+  let passwordRecoveryNotifier: PasswordRecoveryNotifierFake;
 
   const testEmailPattern = 'sw1-e2e-%@example.test';
 
@@ -18,9 +36,14 @@ describe('Aplicacion (e2e)', () => {
   }
 
   beforeAll(async () => {
+    passwordRecoveryNotifier = new PasswordRecoveryNotifierFake();
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PasswordRecoveryNotifier)
+      .useValue(passwordRecoveryNotifier)
+      .compile();
 
     app = moduleFixture.createNestApplication();
 
@@ -34,6 +57,7 @@ describe('Aplicacion (e2e)', () => {
   });
 
   afterEach(async () => {
+    passwordRecoveryNotifier.limpiar();
     await limpiarUsuariosDePrueba();
   });
 
@@ -740,6 +764,12 @@ describe('Aplicacion (e2e)', () => {
       })
       .expect(202);
 
+    expect(passwordRecoveryNotifier.ultimaNotificacion).toMatchObject({
+      correo,
+      nombre: 'Luis',
+      token: expect.any(String),
+    });
+
     expect(response.body).toEqual({
       message:
         'Si existe una cuenta asociada al correo, recibirás instrucciones para recuperar el acceso.',
@@ -753,6 +783,8 @@ describe('Aplicacion (e2e)', () => {
         correo: 'sw1-e2e-recuperacion-inexistente@example.test',
       })
       .expect(202);
+
+    expect(passwordRecoveryNotifier.ultimaNotificacion).toBeNull();
 
     expect(response.body).toEqual({
       message:
@@ -771,5 +803,175 @@ describe('Aplicacion (e2e)', () => {
     expect(response.body.message).toEqual(
       expect.arrayContaining(['correo must be an email']),
     );
+  });
+
+  it('/api/auth/recuperacion/confirmar recupera la contraseña y revoca las sesiones anteriores', async () => {
+    const correo = 'sw1-e2e-recuperacion-confirmar@example.test';
+
+    const contrasenaAnterior = 'ClaveAnterior123!';
+
+    const nuevaContrasena = 'NuevaClave123!';
+
+    const registro = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena: contrasenaAnterior,
+      })
+      .expect(201);
+
+    const usuarioId = registro.body.id;
+
+    const loginAnterior = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: contrasenaAnterior,
+      })
+      .expect(200);
+
+    const accessTokenAnterior = loginAnterior.body.accessToken;
+
+    const refreshTokenAnterior = loginAnterior.body.refreshToken;
+
+    const sesionesAntes = await dataSource.query<
+      Array<{
+        id: string;
+        fecha_revocacion: Date | null;
+      }>
+    >(
+      `
+        SELECT id, fecha_revocacion
+        FROM sesion
+        WHERE id_usuario = $1
+      `,
+      [usuarioId],
+    );
+
+    expect(sesionesAntes).toHaveLength(1);
+
+    const sesionAnteriorId = sesionesAntes[0].id;
+
+    expect(sesionesAntes[0].fecha_revocacion).toBeNull();
+
+    await request(app.getHttpServer())
+      .post('/api/auth/recuperacion/solicitar')
+      .send({
+        correo,
+      })
+      .expect(202);
+
+    const notificacion = passwordRecoveryNotifier.ultimaNotificacion;
+
+    expect(notificacion).not.toBeNull();
+
+    const tokenRecuperacion = notificacion!.token;
+
+    const confirmacion = await request(app.getHttpServer())
+      .post('/api/auth/recuperacion/confirmar')
+      .send({
+        token: tokenRecuperacion,
+        nuevaContrasena,
+        confirmacionContrasena: nuevaContrasena,
+      });
+
+    expect(confirmacion.body).toEqual({
+      message: 'La contraseña fue actualizada correctamente.',
+    });
+
+    const sesionAnterior = await dataSource.query<
+      Array<{
+        fecha_revocacion: Date | null;
+      }>
+    >(
+      `
+        SELECT fecha_revocacion
+        FROM sesion
+        WHERE id = $1
+      `,
+      [sesionAnteriorId],
+    );
+
+    expect(sesionAnterior).toHaveLength(1);
+
+    expect(sesionAnterior[0].fecha_revocacion).not.toBeNull();
+
+    await request(app.getHttpServer())
+      .get('/api/auth/sesion')
+      .set('Authorization', `Bearer ${accessTokenAnterior}`)
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/refresh')
+      .send({
+        refreshToken: refreshTokenAnterior,
+      })
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: contrasenaAnterior,
+      })
+      .expect(401);
+
+    const nuevoLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena: nuevaContrasena,
+      })
+      .expect(200);
+
+    expect(nuevoLogin.body.accessToken).toEqual(expect.any(String));
+
+    expect(nuevoLogin.body.refreshToken).toEqual(expect.any(String));
+
+    await request(app.getHttpServer())
+      .post('/api/auth/recuperacion/confirmar')
+      .send({
+        token: tokenRecuperacion,
+        nuevaContrasena: 'OtraNuevaClave123!',
+        confirmacionContrasena: 'OtraNuevaClave123!',
+      })
+      .expect(401);
+  });
+
+  it('/api/auth/recuperacion/confirmar rechaza contraseñas que no coinciden', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/recuperacion/confirmar')
+      .send({
+        token: 'token-cualquiera',
+        nuevaContrasena: 'NuevaClave123!',
+        confirmacionContrasena: 'OtraClave123!',
+      })
+      .expect(400);
+
+    expect(response.body).toMatchObject({
+      statusCode: 400,
+      error: 'Bad Request',
+      message: 'La nueva contraseña y su confirmación no coinciden',
+    });
+  });
+
+  it('/api/auth/recuperacion/confirmar rechaza un token inválido', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/auth/recuperacion/confirmar')
+      .send({
+        token: 'token-invalido',
+        nuevaContrasena: 'NuevaClave123!',
+        confirmacionContrasena: 'NuevaClave123!',
+      })
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message:
+        'El mecanismo de recuperación no es válido o ya no se encuentra vigente',
+    });
   });
 });
