@@ -222,6 +222,13 @@ import { AccesoProyectoController } from './presentation/controllers/acceso-proy
     RechazarInvitacionUseCase,
     AccederProyectoUseCase,
   ],
-  exports: [UsuarioRepository, PasswordHasher, TokenService],
+  exports: [
+    UsuarioRepository,
+    PasswordHasher,
+    TokenService,
+    SesionRepository,
+    AutorizacionProyectoService,
+    AccessTokenGuard,
+  ],
 })
 export class Pa01Module {}

@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -32,6 +33,21 @@ describe('Aplicacion (e2e)', () => {
   const testProjectNamePattern = 'SW1-E2E-%';
 
   async function limpiarUsuariosDePrueba(): Promise<void> {
+    if (!dataSource?.isInitialized) {
+      return;
+    }
+
+    await dataSource.query(
+      `
+      DELETE FROM modelo_uml
+      WHERE id_proyecto IN (
+        SELECT id
+        FROM proyecto
+        WHERE nombre LIKE $1)
+    `,
+      [testProjectNamePattern],
+    );
+
     await dataSource.query(
       `
       DELETE FROM permiso_membresia
@@ -2170,5 +2186,303 @@ describe('Aplicacion (e2e)', () => {
     );
 
     expect(membresiaRechazada[0].cantidad).toBe('0');
+  });
+
+  it('/api/proyectos/:idProyecto/modelos-uml permite crear, guardar, recuperar y autorizar modelos UML', async () => {
+    const contrasena = 'ClaveSegura123!';
+    const correoHost = 'sw1-e2e-cu05-host@example.test';
+    const correoLector = 'sw1-e2e-cu05-lector@example.test';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Host',
+        apellido: 'CU05',
+        correo: correoHost,
+        contrasena,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Lector',
+        apellido: 'CU05',
+        correo: correoLector,
+        contrasena,
+      })
+      .expect(201);
+
+    const loginHost = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ correo: correoHost, contrasena })
+      .expect(200);
+
+    const loginLector = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ correo: correoLector, contrasena })
+      .expect(200);
+
+    const tokenHost = loginHost.body.accessToken;
+    const tokenLector = loginLector.body.accessToken;
+
+    const proyecto = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'SW1-E2E-CU05-Modelado',
+        descripcion: 'Proyecto E2E para CU-05',
+      })
+      .expect(201);
+
+    const idProyecto = proyecto.body.id as string;
+
+    const creado = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/modelos-uml`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Modelo de dominio',
+        descripcion: 'Modelo inicial',
+      })
+      .expect(201);
+
+    expect(creado.body).toMatchObject({
+      nombre: 'Modelo de dominio',
+      descripcion: 'Modelo inicial',
+      version: 1,
+      estado: 'ACTIVO',
+      idProyecto,
+      contenido: {
+        versionEsquema: 1,
+        clases: [],
+        relaciones: [],
+        configuracion: {},
+      },
+    });
+
+    const idModelo = creado.body.id as string;
+    const idCliente = randomUUID();
+    const idPedido = randomUUID();
+    const idClientePk = randomUUID();
+    const idPedidoPk = randomUUID();
+
+    const contenido = {
+      versionEsquema: 1,
+      configuracion: {},
+      clases: [
+        {
+          id: idCliente,
+          nombre: 'Cliente',
+          posicion: { x: 100, y: 80 },
+          persistencia: {
+            persistente: true,
+            idAtributoIdentificador: idClientePk,
+          },
+          atributos: [
+            {
+              id: idClientePk,
+              nombre: 'id',
+              tipo: 'Long',
+              visibilidad: 'PRIVADA',
+            },
+            {
+              id: randomUUID(),
+              nombre: 'nombre',
+              tipo: 'String',
+              visibilidad: 'PRIVADA',
+            },
+          ],
+          operaciones: [
+            {
+              id: randomUUID(),
+              nombre: 'buscarPedido',
+              visibilidad: 'PUBLICA',
+              tipoRetorno: 'Pedido',
+              parametros: [
+                {
+                  id: randomUUID(),
+                  nombre: 'idPedido',
+                  tipo: 'Long',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: idPedido,
+          nombre: 'Pedido',
+          posicion: { x: 520, y: 80 },
+          persistencia: {
+            persistente: true,
+            idAtributoIdentificador: idPedidoPk,
+          },
+          atributos: [
+            {
+              id: idPedidoPk,
+              nombre: 'id',
+              tipo: 'Long',
+              visibilidad: 'PRIVADA',
+            },
+          ],
+          operaciones: [],
+        },
+      ],
+      relaciones: [
+        {
+          id: randomUUID(),
+          tipo: 'ASOCIACION',
+          idClaseOrigen: idCliente,
+          idClaseDestino: idPedido,
+          nombre: 'pedidos',
+          multiplicidadOrigen: '1',
+          multiplicidadDestino: '0..*',
+        },
+      ],
+    };
+
+    const guardado = await request(app.getHttpServer())
+      .put(`/api/proyectos/${idProyecto}/modelos-uml/${idModelo}`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Modelo de dominio actualizado',
+        descripcion: 'Contiene Cliente y Pedido',
+        contenido,
+        version: 1,
+      })
+      .expect(200);
+
+    expect(guardado.body).toMatchObject({
+      id: idModelo,
+      nombre: 'Modelo de dominio actualizado',
+      version: 2,
+      contenido,
+    });
+
+    const recuperado = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/modelos-uml/${idModelo}`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    expect(recuperado.body).toMatchObject({
+      id: idModelo,
+      version: 2,
+      contenido,
+    });
+
+    const listado = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/modelos-uml`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    expect(listado.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: idModelo,
+          nombre: 'Modelo de dominio actualizado',
+          version: 2,
+        }),
+      ]),
+    );
+
+    expect(listado.body[0]).not.toHaveProperty('contenido');
+
+    await request(app.getHttpServer())
+      .put(`/api/proyectos/${idProyecto}/modelos-uml/${idModelo}`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Guardado obsoleto',
+        contenido,
+        version: 1,
+      })
+      .expect(409);
+
+    const contenidoInvalido = {
+      ...contenido,
+      relaciones: [
+        {
+          id: randomUUID(),
+          tipo: 'ASOCIACION',
+          idClaseOrigen: idCliente,
+          idClaseDestino: randomUUID(),
+          nombre: null,
+          multiplicidadOrigen: '1',
+          multiplicidadDestino: '0..*',
+        },
+      ],
+    };
+
+    await request(app.getHttpServer())
+      .put(`/api/proyectos/${idProyecto}/modelos-uml/${idModelo}`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Modelo inválido',
+        contenido: contenidoInvalido,
+        version: 2,
+      })
+      .expect(400);
+
+    const permisos = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/permisos`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    const permisoConsultarModelo = permisos.body.find(
+      (permiso: { id: string; recurso: string; accion: string }) =>
+        permiso.recurso === 'MODELO' && permiso.accion === 'CONSULTAR',
+    );
+
+    expect(permisoConsultarModelo).toBeDefined();
+
+    const rolLector = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/roles`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Lector UML CU05',
+        permisosIds: [permisoConsultarModelo.id],
+      })
+      .expect(201);
+
+    const invitacion = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/invitaciones`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        correo: correoLector,
+        idRol: rolLector.body.id,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/invitaciones/${invitacion.body.id}/aceptar`)
+      .set('Authorization', `Bearer ${tokenLector}`)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/modelos-uml/${idModelo}`)
+      .set('Authorization', `Bearer ${tokenLector}`)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/modelos-uml`)
+      .set('Authorization', `Bearer ${tokenLector}`)
+      .send({ nombre: 'Modelo no autorizado' })
+      .expect(403);
+
+    const persistido = await dataSource.query<
+      Array<{
+        version: number;
+        contenido: typeof contenido;
+      }>
+    >(
+      `
+        SELECT version, contenido
+        FROM modelo_uml
+        WHERE id = $1
+      `,
+      [idModelo],
+    );
+
+    expect(persistido).toHaveLength(1);
+    expect(persistido[0].version).toBe(2);
+    expect(persistido[0].contenido).toEqual(contenido);
   });
 });
