@@ -29,10 +29,48 @@ describe('Aplicacion (e2e)', () => {
 
   const testEmailPattern = 'sw1-e2e-%@example.test';
 
+  const testProjectNamePattern = 'SW1-E2E-%';
+
   async function limpiarUsuariosDePrueba(): Promise<void> {
-    await dataSource.query('DELETE FROM usuario WHERE correo LIKE $1', [
-      testEmailPattern,
-    ]);
+    await dataSource.query(
+      `
+      DELETE FROM membresia
+      WHERE id_proyecto IN (
+        SELECT id
+        FROM proyecto
+        WHERE nombre LIKE $1
+      )
+    `,
+      [testProjectNamePattern],
+    );
+
+    await dataSource.query(
+      `
+      DELETE FROM rol
+      WHERE id_proyecto IN (
+        SELECT id
+        FROM proyecto
+        WHERE nombre LIKE $1
+      )
+    `,
+      [testProjectNamePattern],
+    );
+
+    await dataSource.query(
+      `
+      DELETE FROM proyecto
+      WHERE nombre LIKE $1
+    `,
+      [testProjectNamePattern],
+    );
+
+    await dataSource.query(
+      `
+      DELETE FROM usuario
+      WHERE correo LIKE $1
+    `,
+      [testEmailPattern],
+    );
   }
 
   beforeAll(async () => {
@@ -1307,5 +1345,259 @@ describe('Aplicacion (e2e)', () => {
         confirmacionContrasena: 'NuevaClave123!',
       })
       .expect(401);
+  });
+
+  it('/api/proyectos crea un proyecto y convierte al creador en Anfitrión', async () => {
+    const correo = 'sw1-e2e-cu02-crear@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    const registro = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .send({
+        nombre: 'SW1-E2E-CU02-Proyecto',
+        descripcion: 'Proyecto colaborativo de prueba',
+      })
+      .expect(201);
+
+    expect(response.body).toMatchObject({
+      nombre: 'SW1-E2E-CU02-Proyecto',
+      descripcion: 'Proyecto colaborativo de prueba',
+      estado: 'ACTIVO',
+      configuracion: {},
+    });
+
+    const filas = await dataSource.query<
+      Array<{
+        proyecto_id: string;
+        rol_nombre: string;
+        es_predeterminado: boolean;
+        id_usuario: string;
+        membresia_estado: string;
+      }>
+    >(
+      `
+        SELECT
+          p.id AS proyecto_id,
+          r.nombre AS rol_nombre,
+          r.es_predeterminado,
+          m.id_usuario,
+          m.estado AS membresia_estado
+        FROM proyecto p
+        INNER JOIN rol r
+          ON r.id_proyecto = p.id
+        INNER JOIN membresia m
+          ON m.id_proyecto = p.id
+          AND m.id_rol = r.id
+        WHERE p.id = $1
+      `,
+      [response.body.id],
+    );
+
+    expect(filas).toHaveLength(1);
+
+    expect(filas[0]).toMatchObject({
+      proyecto_id: response.body.id,
+      rol_nombre: 'Anfitrión',
+      es_predeterminado: true,
+      id_usuario: registro.body.id,
+      membresia_estado: 'ACTIVA',
+    });
+  });
+
+  it('/api/proyectos rechaza la creación sin autenticación', async () => {
+    await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .send({
+        nombre: 'SW1-E2E-Sin-Auth',
+      })
+      .expect(401);
+  });
+
+  it('/api/proyectos permite listar, consultar y modificar un proyecto propio', async () => {
+    const correo = 'sw1-e2e-cu02-administrar@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const token = login.body.accessToken;
+
+    const creacion = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre: 'SW1-E2E-CU02-Administrar',
+        descripcion: 'Descripción inicial',
+      })
+      .expect(201);
+
+    const idProyecto = creacion.body.id;
+
+    const listado = await request(app.getHttpServer())
+      .get('/api/proyectos')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(
+      listado.body.some(
+        (proyecto: { id: string }) => proyecto.id === idProyecto,
+      ),
+    ).toBe(true);
+
+    const consulta = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(consulta.body).toMatchObject({
+      id: idProyecto,
+      nombre: 'SW1-E2E-CU02-Administrar',
+      descripcion: 'Descripción inicial',
+    });
+
+    const modificacion = await request(app.getHttpServer())
+      .put(`/api/proyectos/${idProyecto}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        nombre: 'SW1-E2E-CU02-Actualizado',
+        descripcion: 'Descripción actualizada',
+        configuracion: {
+          prueba: true,
+        },
+      })
+      .expect(200);
+
+    expect(modificacion.body).toMatchObject({
+      id: idProyecto,
+      nombre: 'SW1-E2E-CU02-Actualizado',
+      descripcion: 'Descripción actualizada',
+      configuracion: {
+        prueba: true,
+      },
+    });
+
+    const filas = await dataSource.query<
+      Array<{
+        nombre: string;
+        rol_nombre: string;
+        membresia_estado: string;
+      }>
+    >(
+      `
+        SELECT
+          p.nombre,
+          r.nombre AS rol_nombre,
+          m.estado AS membresia_estado
+        FROM proyecto p
+        INNER JOIN membresia m
+          ON m.id_proyecto = p.id
+        INNER JOIN rol r
+          ON r.id = m.id_rol
+          AND r.id_proyecto =
+              m.id_proyecto
+        WHERE p.id = $1
+      `,
+      [idProyecto],
+    );
+
+    expect(filas).toHaveLength(1);
+
+    expect(filas[0]).toMatchObject({
+      nombre: 'SW1-E2E-CU02-Actualizado',
+      rol_nombre: 'Anfitrión',
+      membresia_estado: 'ACTIVA',
+    });
+  });
+
+  it('/api/proyectos impide modificar un proyecto a un usuario no autorizado', async () => {
+    const contrasena = 'ClaveSegura123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Anfitrion',
+        apellido: 'Prueba',
+        correo: 'sw1-e2e-cu02-host@example.test',
+        contrasena,
+      })
+      .expect(201);
+
+    const loginHost = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo: 'sw1-e2e-cu02-host@example.test',
+        contrasena,
+      })
+      .expect(200);
+
+    const proyecto = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${loginHost.body.accessToken}`)
+      .send({
+        nombre: 'SW1-E2E-CU02-Privado',
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Otro',
+        apellido: 'Usuario',
+        correo: 'sw1-e2e-cu02-otro@example.test',
+        contrasena,
+      })
+      .expect(201);
+
+    const loginOtro = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo: 'sw1-e2e-cu02-otro@example.test',
+        contrasena,
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .put(`/api/proyectos/${proyecto.body.id}`)
+      .set('Authorization', `Bearer ${loginOtro.body.accessToken}`)
+      .send({
+        nombre: 'SW1-E2E-CU02-No-Permitido',
+      })
+      .expect(403);
   });
 });

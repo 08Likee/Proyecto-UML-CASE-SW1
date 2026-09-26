@@ -47,12 +47,30 @@ import { ObtenerPerfilUseCase } from './application/use-cases/cu01-gestionar-cue
 
 import { CambiarContrasenaUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/cambiar-contrasena.use-case';
 
+import { ProyectoRepository } from './domain/repositories/proyecto.repository';
+import { ProyectoEntity } from './infrastructure/persistence/entities/proyecto.entity';
+import { RolEntity } from './infrastructure/persistence/entities/rol.entity';
+import { MembresiaEntity } from './infrastructure/persistence/entities/membresia.entity';
+import { TypeOrmProyectoRepository } from './infrastructure/persistence/repositories/typeorm-proyecto.repository';
+import { CrearProyectoUseCase } from './application/use-cases/cu02-gestionar-proyecto-colaborativo/crear-proyecto.use-case';
+import { ProyectosController } from './presentation/controllers/proyectos.controller';
+
+import { ListarProyectosUseCase } from './application/use-cases/cu02-gestionar-proyecto-colaborativo/listar-proyectos.use-case';
+import { ModificarProyectoUseCase } from './application/use-cases/cu02-gestionar-proyecto-colaborativo/modificar-proyecto.use-case';
+import { ObtenerProyectoUseCase } from './application/use-cases/cu02-gestionar-proyecto-colaborativo/obtener-proyecto.use-case';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UsuarioEntity, SesionEntity]),
+    TypeOrmModule.forFeature([
+      UsuarioEntity,
+      SesionEntity,
+      ProyectoEntity,
+      RolEntity,
+      MembresiaEntity,
+    ]),
     JwtModule.register({}),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, ProyectosController],
   providers: [
     {
       provide: UsuarioRepository,
@@ -118,6 +136,14 @@ import { CambiarContrasenaUseCase } from './application/use-cases/cu01-gestionar
     ObtenerPerfilUseCase,
     ModificarPerfilUseCase,
     CambiarContrasenaUseCase,
+    {
+      provide: ProyectoRepository,
+      useClass: TypeOrmProyectoRepository,
+    },
+    CrearProyectoUseCase,
+    ListarProyectosUseCase,
+    ObtenerProyectoUseCase,
+    ModificarProyectoUseCase,
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })
