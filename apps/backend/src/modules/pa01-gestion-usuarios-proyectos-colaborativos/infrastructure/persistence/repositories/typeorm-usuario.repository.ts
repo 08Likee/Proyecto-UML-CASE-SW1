@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
 import {
+  type ActualizarPerfilDatos,
   type CrearUsuarioDatos,
   type Usuario,
   type UsuarioEstado,
@@ -83,5 +84,38 @@ export class TypeOrmUsuarioRepository implements UsuarioRepository {
     fecha: Date,
   ): Promise<void> {
     await this.repository.update({ id: idUsuario }, { ultimaConexion: fecha });
+  }
+
+  async buscarPorId(idUsuario: string): Promise<Usuario | null> {
+    const entity = await this.repository.findOne({
+      where: {
+        id: idUsuario,
+      },
+    });
+
+    return entity ? this.toDomain(entity) : null;
+  }
+
+  async actualizarPerfil(
+    idUsuario: string,
+    datos: ActualizarPerfilDatos,
+  ): Promise<Usuario | null> {
+    const entity = await this.repository.findOne({
+      where: {
+        id: idUsuario,
+      },
+    });
+
+    if (!entity) {
+      return null;
+    }
+
+    entity.nombre = datos.nombre;
+    entity.apellido = datos.apellido;
+    entity.fotoPerfil = datos.fotoPerfil;
+
+    const guardado = await this.repository.save(entity);
+
+    return this.toDomain(guardado);
   }
 }

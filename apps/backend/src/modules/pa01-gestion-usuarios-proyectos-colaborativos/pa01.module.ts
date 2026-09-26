@@ -41,6 +41,10 @@ import { RecuperacionCuentaRepository } from './application/ports/persistence/re
 import { ConfirmarRecuperacionUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/confirmar-recuperacion.use-case';
 import { TypeOrmRecuperacionCuentaRepository } from './infrastructure/persistence/repositories/typeorm-recuperacion-cuenta.repository';
 
+import { ModificarPerfilUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/modificar-perfil.use-case';
+
+import { ObtenerPerfilUseCase } from './application/use-cases/cu01-gestionar-cuenta-acceso/obtener-perfil.use-case';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([UsuarioEntity, SesionEntity]),
@@ -108,6 +112,9 @@ import { TypeOrmRecuperacionCuentaRepository } from './infrastructure/persistenc
       useClass: TypeOrmRecuperacionCuentaRepository,
     },
     ConfirmarRecuperacionUseCase,
+    ModificarPerfilUseCase,
+    ObtenerPerfilUseCase,
+    ModificarPerfilUseCase,
   ],
   exports: [UsuarioRepository, PasswordHasher, TokenService],
 })

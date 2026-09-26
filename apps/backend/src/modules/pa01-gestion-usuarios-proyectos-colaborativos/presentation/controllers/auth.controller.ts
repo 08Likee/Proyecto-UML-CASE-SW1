@@ -10,7 +10,9 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  NotFoundException,
   Post,
+  Put,
   UnauthorizedException,
   Get,
   Req,
@@ -40,6 +42,12 @@ import { ContrasenasNoCoincidenError } from '../../domain/errors/contrasenas-no-
 import { RecuperacionInvalidaError } from '../../domain/errors/recuperacion-invalida.error';
 import { ConfirmarRecuperacionDto } from '../dto/confirmar-recuperacion.dto';
 
+import { ModificarPerfilUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/modificar-perfil.use-case';
+import { UsuarioNoEncontradoError } from '../../domain/errors/usuario-no-encontrado.error';
+import { ModificarPerfilDto } from '../dto/modificar-perfil.dto';
+
+import { ObtenerPerfilUseCase } from '../../application/use-cases/cu01-gestionar-cuenta-acceso/obtener-perfil.use-case';
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -49,6 +57,8 @@ export class AuthController {
     private readonly renovarAccesoUseCase: RenovarAccesoUseCase,
     private readonly solicitarRecuperacionUseCase: SolicitarRecuperacionUseCase,
     private readonly confirmarRecuperacionUseCase: ConfirmarRecuperacionUseCase,
+    private readonly modificarPerfilUseCase: ModificarPerfilUseCase,
+    private readonly obtenerPerfilUseCase: ObtenerPerfilUseCase,
   ) {}
 
   @Post('registro')
@@ -160,6 +170,42 @@ export class AuthController {
 
       if (error instanceof RecuperacionInvalidaError) {
         throw new UnauthorizedException(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  @Put('perfil')
+  @UseGuards(AccessTokenGuard)
+  async modificarPerfil(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: ModificarPerfilDto,
+  ) {
+    try {
+      return await this.modificarPerfilUseCase.execute({
+        idUsuario: request.usuarioId!,
+        nombre: dto.nombre,
+        apellido: dto.apellido,
+        fotoPerfil: dto.fotoPerfil,
+      });
+    } catch (error: unknown) {
+      if (error instanceof UsuarioNoEncontradoError) {
+        throw new NotFoundException(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  @Get('perfil')
+  @UseGuards(AccessTokenGuard)
+  async obtenerPerfil(@Req() request: AuthenticatedRequest) {
+    try {
+      return await this.obtenerPerfilUseCase.execute(request.usuarioId!);
+    } catch (error: unknown) {
+      if (error instanceof UsuarioNoEncontradoError) {
+        throw new NotFoundException(error.message);
       }
 
       throw error;

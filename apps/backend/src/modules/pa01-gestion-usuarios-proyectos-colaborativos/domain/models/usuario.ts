@@ -19,3 +19,9 @@ export interface CrearUsuarioDatos {
   contrasenaHash: string;
   fotoPerfil?: string | null;
 }
+
+export interface ActualizarPerfilDatos {
+  nombre: string;
+  apellido: string;
+  fotoPerfil: string | null;
+}

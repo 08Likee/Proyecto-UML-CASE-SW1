@@ -974,4 +974,176 @@ describe('Aplicacion (e2e)', () => {
         'El mecanismo de recuperación no es válido o ya no se encuentra vigente',
     });
   });
+
+  it('/api/auth/perfil modifica únicamente la información permitida', async () => {
+    const correo = 'sw1-e2e-modificar-perfil@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    const registro = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .put('/api/auth/perfil')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .send({
+        nombre: 'Luis Alberto',
+        apellido: 'Mendoza Rojas',
+        fotoPerfil: 'https://example.com/perfil.png',
+      })
+      .expect(200);
+
+    expect(response.body).toEqual({
+      id: registro.body.id,
+      nombre: 'Luis Alberto',
+      apellido: 'Mendoza Rojas',
+      correo,
+      fotoPerfil: 'https://example.com/perfil.png',
+    });
+
+    expect(response.body).not.toHaveProperty('contrasenaHash');
+
+    const usuarios = await dataSource.query<
+      Array<{
+        nombre: string;
+        apellido: string;
+        correo: string;
+        foto_perfil: string | null;
+      }>
+    >(
+      `
+      SELECT
+        nombre,
+        apellido,
+        correo,
+        foto_perfil
+      FROM usuario
+      WHERE id = $1
+    `,
+      [registro.body.id],
+    );
+
+    expect(usuarios).toHaveLength(1);
+
+    expect(usuarios[0]).toMatchObject({
+      nombre: 'Luis Alberto',
+      apellido: 'Mendoza Rojas',
+      correo,
+      foto_perfil: 'https://example.com/perfil.png',
+    });
+  });
+
+  it('/api/auth/perfil rechaza una modificación sin autenticación', async () => {
+    const response = await request(app.getHttpServer())
+      .put('/api/auth/perfil')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+      })
+      .expect(401);
+
+    expect(response.body).toMatchObject({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'Se requiere autenticación',
+    });
+  });
+
+  it('/api/auth/perfil rechaza datos obligatorios vacíos', async () => {
+    const correo = 'sw1-e2e-perfil-validacion@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .put('/api/auth/perfil')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .send({
+        nombre: '',
+        apellido: '',
+      })
+      .expect(400);
+
+    expect(response.body.message).toEqual(
+      expect.arrayContaining([
+        'nombre should not be empty',
+        'apellido should not be empty',
+      ]),
+    );
+  });
+
+  it('/api/auth/perfil obtiene el perfil del usuario autenticado', async () => {
+    const correo = 'sw1-e2e-obtener-perfil@example.test';
+
+    const contrasena = 'ClaveSegura123!';
+
+    const registro = await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Luis',
+        apellido: 'Mendoza',
+        correo,
+        contrasena,
+      })
+      .expect(201);
+
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({
+        correo,
+        contrasena,
+      })
+      .expect(200);
+
+    const response = await request(app.getHttpServer())
+      .get('/api/auth/perfil')
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(200);
+
+    expect(response.body).toEqual({
+      id: registro.body.id,
+      nombre: 'Luis',
+      apellido: 'Mendoza',
+      correo,
+      fotoPerfil: null,
+    });
+
+    expect(response.body).not.toHaveProperty('contrasenaHash');
+  });
+
+  it('/api/auth/perfil rechaza una consulta sin autenticación', async () => {
+    await request(app.getHttpServer()).get('/api/auth/perfil').expect(401);
+  });
 });
