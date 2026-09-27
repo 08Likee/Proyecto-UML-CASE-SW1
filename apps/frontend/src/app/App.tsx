@@ -1,10 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
+import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/styles/cu01.css';
 import { ThemeToggle } from '../shared/theme/ThemeToggle';
-import { cerrarSesion, iniciarSesion } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/api/auth.api';
-import { leerSesion } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/storage/auth.storage';
-import type { AuthSession } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/types/auth.types';
+import {
+  cerrarSesion,
+  verificarSesion,
+} from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/api/auth.api';
+import {
+  AUTH_SESSION_CHANGED_EVENT,
+  guardarSesion,
+  leerSesion,
+} from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/storage/auth.storage';
+import type {
+  AuthSession,
+  PerfilUsuario,
+} from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/types/auth.types';
+import { LoginView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/LoginView';
+import { RegistroView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/RegistroView';
+import { RecuperarContrasenaView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/RecuperarContrasenaView';
+import { PerfilView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/PerfilView';
 import { ModeladorUml } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/components/ModeladorUml';
 import {
   crearModeloUml,
@@ -24,72 +40,12 @@ function mensajeError(error: unknown): string {
   return error instanceof Error ? error.message : 'Ocurrió un error inesperado';
 }
 
-function LoginView({ alIniciar }: { alIniciar: (sesion: AuthSession) => void }) {
-  const [correo, setCorreo] = useState('');
-  const [contrasena, setContrasena] = useState('');
-  const [enviando, setEnviando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setEnviando(true);
-    setError(null);
-
-    try {
-      const sesion = await iniciarSesion({ correo, contrasena });
-      alIniciar(sesion);
-    } catch (unknownError: unknown) {
-      setError(mensajeError(unknownError));
-    } finally {
-      setEnviando(false);
-    }
-  };
-
-  return (
-    <main className="login-page">
-      <section className="login-card">
-        <div className="login-theme-row"><ThemeToggle /></div>
-        <div className="brand-mark">UML</div>
-        <h1>Herramienta CASE colaborativa</h1>
-        <p className="muted">
-          Accede a tus proyectos para crear y editar diagramas de clases.
-        </p>
-
-        <form onSubmit={(event) => void submit(event)}>
-          <label>
-            Correo
-            <input
-              type="email"
-              value={correo}
-              required
-              autoComplete="email"
-              onChange={(event) => setCorreo(event.target.value)}
-            />
-          </label>
-          <label>
-            Contraseña
-            <input
-              type="password"
-              value={contrasena}
-              required
-              autoComplete="current-password"
-              onChange={(event) => setContrasena(event.target.value)}
-            />
-          </label>
-
-          {error && <div className="alert error-alert">{error}</div>}
-
-          <button className="primary-button full-width" disabled={enviando}>
-            {enviando ? 'Ingresando…' : 'Iniciar sesión'}
-          </button>
-        </form>
-      </section>
-    </main>
-  );
+interface WorkspaceViewProps {
+  sesion: AuthSession;
+  alCerrarSesion: () => Promise<void>;
 }
 
-function App() {
-  const [sesion, setSesion] = useState<AuthSession | null>(() => leerSesion());
+function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
   const [idProyecto, setIdProyecto] = useState<string | null>(null);
   const [acceso, setAcceso] = useState<AccesoProyecto | null>(null);
@@ -102,22 +58,20 @@ function App() {
   const cargarModelo = useModeladorStore((state) => state.cargarModelo);
 
   useEffect(() => {
-    if (!sesion) {
-      return;
-    }
-
     listarProyectos()
       .then((resultado) => {
         setProyectos(resultado);
         if (resultado.length > 0) {
+          setCargando(true);
+          setError(null);
           setIdProyecto((actual) => actual ?? resultado[0].id);
         }
       })
       .catch((unknownError: unknown) => setError(mensajeError(unknownError)));
-  }, [sesion]);
+  }, []);
 
   useEffect(() => {
-    if (!sesion || !idProyecto) {
+    if (!idProyecto) {
       return;
     }
 
@@ -131,8 +85,9 @@ function App() {
         setAcceso(accesoProyecto);
         setModelos(modelosProyecto);
       })
-      .catch((unknownError: unknown) => setError(mensajeError(unknownError)));
-  }, [sesion, idProyecto]);
+      .catch((unknownError: unknown) => setError(mensajeError(unknownError)))
+      .finally(() => setCargando(false));
+  }, [idProyecto]);
 
   const puedeEditar = useMemo(
     () =>
@@ -144,10 +99,6 @@ function App() {
       ) ?? false,
     [acceso],
   );
-
-  if (!sesion) {
-    return <LoginView alIniciar={setSesion} />;
-  }
 
   const proyectoSeleccionado = proyectos.find(
     (proyecto) => proyecto.id === idProyecto,
@@ -195,16 +146,6 @@ function App() {
     }
   };
 
-  const salir = async () => {
-    await cerrarSesion(sesion);
-    setSesion(null);
-    setProyectos([]);
-    setIdProyecto(null);
-    setAcceso(null);
-    setModelos([]);
-    useModeladorStore.setState({ modelo: null, seleccionado: null, sucio: false });
-  };
-
   if (modeloAbierto && idProyecto) {
     return (
       <ModeladorUml
@@ -234,7 +175,10 @@ function App() {
           <span>
             {sesion.usuario.nombre} {sesion.usuario.apellido}
           </span>
-          <button type="button" onClick={() => void salir()}>
+          <Link className="button-link" to="/perfil">
+            Mi perfil
+          </Link>
+          <button type="button" onClick={() => void alCerrarSesion()}>
             Cerrar sesión
           </button>
         </div>
@@ -252,7 +196,13 @@ function App() {
                 type="button"
                 className={proyecto.id === idProyecto ? 'active' : ''}
                 key={proyecto.id}
-                onClick={() => setIdProyecto(proyecto.id)}
+                onClick={() => {
+                  if (proyecto.id !== idProyecto) {
+                    setCargando(true);
+                    setError(null);
+                    setIdProyecto(proyecto.id);
+                  }
+                }}
               >
                 <strong>{proyecto.nombre}</strong>
                 <span>{proyecto.estado}</span>
@@ -330,6 +280,85 @@ function App() {
         </section>
       </main>
     </div>
+  );
+}
+
+function App() {
+  const [sesion, setSesion] = useState<AuthSession | null>(() => leerSesion());
+
+  useEffect(() => {
+    const sincronizar = () => setSesion(leerSesion());
+    window.addEventListener(AUTH_SESSION_CHANGED_EVENT, sincronizar);
+
+    return () => {
+      window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, sincronizar);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!sesion) {
+      return;
+    }
+
+    void verificarSesion().catch(() => {
+      // apiRequest elimina la sesión si el refresh token dejó de ser válido.
+      // Una pérdida temporal de red no debe cerrar la sesión local por sí sola.
+    });
+  }, [sesion]);
+
+  const salir = async () => {
+    if (!sesion) {
+      return;
+    }
+
+    await cerrarSesion(sesion);
+    setSesion(null);
+    useModeladorStore.setState({ modelo: null, seleccionado: null, sucio: false });
+  };
+
+  const actualizarPerfilSesion = (perfil: PerfilUsuario) => {
+    if (!sesion) {
+      return;
+    }
+
+    const actualizada: AuthSession = {
+      ...sesion,
+      usuario: perfil,
+    };
+
+    guardarSesion(actualizada);
+    setSesion(actualizada);
+  };
+
+  if (!sesion) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginView alIniciar={setSesion} />} />
+        <Route path="/registro" element={<RegistroView />} />
+        <Route path="/recuperar-contrasena" element={<RecuperarContrasenaView />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/"
+        element={<WorkspaceView sesion={sesion} alCerrarSesion={salir} />}
+      />
+      <Route
+        path="/perfil"
+        element={
+          <PerfilView
+            sesion={sesion}
+            alActualizarPerfil={actualizarPerfilSesion}
+            alCerrarSesion={salir}
+          />
+        }
+      />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 

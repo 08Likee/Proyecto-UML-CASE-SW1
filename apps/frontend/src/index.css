@@ -29,6 +29,9 @@
   --danger-border: #f1beb9;
   --error-background: #fff4f3;
   --error-border: #f1c7c4;
+  --success-background: #effbf3;
+  --success-border: #a9ddb9;
+  --success-text: #18723b;
   --warning-background: #fff5d7;
   --warning-text: #835d00;
   --readonly-background: #f1f3f7;
@@ -64,6 +67,9 @@
   --danger-border: #7f3b3b;
   --error-background: #351717;
   --error-border: #7f3b3b;
+  --success-background: #132b1c;
+  --success-border: #2f6f45;
+  --success-text: #86efac;
   --warning-background: #3a2d0f;
   --warning-text: #facc15;
   --readonly-background: #263244;

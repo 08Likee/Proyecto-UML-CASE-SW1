@@ -11,3 +11,14 @@ export interface AuthSession {
   refreshToken: string;
   usuario: UsuarioSesion;
 }
+
+export type PerfilUsuario = UsuarioSesion;
+
+export interface RegistroCuentaResultado extends PerfilUsuario {
+  estado: string;
+  fechaRegistro: string;
+}
+
+export interface MensajeResultado {
+  message: string;
+}
