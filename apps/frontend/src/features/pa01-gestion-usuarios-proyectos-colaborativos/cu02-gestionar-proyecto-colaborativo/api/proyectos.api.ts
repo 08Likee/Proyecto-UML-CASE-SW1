@@ -10,6 +10,18 @@ export interface Proyecto {
   fechaActualizacion: string;
 }
 
+export interface CrearProyectoEntrada {
+  nombre: string;
+  descripcion?: string;
+  configuracion?: Record<string, unknown>;
+}
+
+export interface ModificarProyectoEntrada {
+  nombre: string;
+  descripcion?: string | null;
+  configuracion?: Record<string, unknown>;
+}
+
 export interface PermisoEfectivo {
   idPermiso: string;
   nombre: string;
@@ -33,8 +45,29 @@ export interface AccesoProyecto {
   permisos: PermisoEfectivo[];
 }
 
+export function crearProyecto(entrada: CrearProyectoEntrada): Promise<Proyecto> {
+  return apiRequest<Proyecto>('/proyectos', {
+    method: 'POST',
+    body: JSON.stringify(entrada),
+  });
+}
+
 export function listarProyectos(): Promise<Proyecto[]> {
   return apiRequest<Proyecto[]>('/proyectos');
+}
+
+export function obtenerProyecto(idProyecto: string): Promise<Proyecto> {
+  return apiRequest<Proyecto>(`/proyectos/${idProyecto}`);
+}
+
+export function modificarProyecto(
+  idProyecto: string,
+  entrada: ModificarProyectoEntrada,
+): Promise<Proyecto> {
+  return apiRequest<Proyecto>(`/proyectos/${idProyecto}`, {
+    method: 'PUT',
+    body: JSON.stringify(entrada),
+  });
 }
 
 export function obtenerAccesoProyecto(

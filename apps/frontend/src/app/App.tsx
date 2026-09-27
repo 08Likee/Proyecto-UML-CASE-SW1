@@ -3,6 +3,7 @@ import type { FormEvent } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/styles/cu01.css';
+import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/styles/cu02.css';
 import { ThemeToggle } from '../shared/theme/ThemeToggle';
 import {
   cerrarSesion,
@@ -21,6 +22,11 @@ import { LoginView } from '../features/pa01-gestion-usuarios-proyectos-colaborat
 import { RegistroView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/RegistroView';
 import { RecuperarContrasenaView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/RecuperarContrasenaView';
 import { PerfilView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/PerfilView';
+import { ProyectoDetalle } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/components/ProyectoDetalle';
+import {
+  ProyectoForm,
+  type ProyectoFormValores,
+} from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/components/ProyectoForm';
 import { ModeladorUml } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/components/ModeladorUml';
 import {
   crearModeloUml,
@@ -30,8 +36,11 @@ import {
 import { useModeladorStore } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/store/modelador.store';
 import type { ModeloUmlResumen } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/types/modelo-uml.types';
 import {
+  crearProyecto as crearProyectoApi,
   listarProyectos,
+  modificarProyecto as modificarProyectoApi,
   obtenerAccesoProyecto,
+  obtenerProyecto,
   type AccesoProyecto,
   type Proyecto,
 } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/api/proyectos.api';
@@ -54,6 +63,9 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [creando, setCreando] = useState(false);
   const [nombreNuevoModelo, setNombreNuevoModelo] = useState('');
+  const [modoProyecto, setModoProyecto] = useState<'detalle' | 'crear' | 'editar'>('detalle');
+  const [guardandoProyecto, setGuardandoProyecto] = useState(false);
+  const [mensajeProyecto, setMensajeProyecto] = useState<string | null>(null);
   const modeloAbierto = useModeladorStore((state) => state.modelo);
   const cargarModelo = useModeladorStore((state) => state.cargarModelo);
 
@@ -65,7 +77,12 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
           setCargando(true);
           setError(null);
           setIdProyecto((actual) => actual ?? resultado[0].id);
+          return;
         }
+
+        setIdProyecto(null);
+        setAcceso(null);
+        setModelos([]);
       })
       .catch((unknownError: unknown) => setError(mensajeError(unknownError)));
   }, []);
@@ -78,10 +95,14 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
     useModeladorStore.setState({ modelo: null, seleccionado: null, sucio: false });
 
     Promise.all([
+      obtenerProyecto(idProyecto),
       obtenerAccesoProyecto(idProyecto),
       listarModelosUml(idProyecto),
     ])
-      .then(([accesoProyecto, modelosProyecto]) => {
+      .then(([proyecto, accesoProyecto, modelosProyecto]) => {
+        setProyectos((actuales) =>
+          actuales.map((item) => (item.id === proyecto.id ? proyecto : item)),
+        );
         setAcceso(accesoProyecto);
         setModelos(modelosProyecto);
       })
@@ -100,9 +121,94 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
     [acceso],
   );
 
+  const puedeModificarProyecto = useMemo(
+    () =>
+      acceso?.permisos.some(
+        (permiso) =>
+          permiso.recurso === 'PROYECTO' &&
+          permiso.accion === 'MODIFICAR' &&
+          permiso.permitido,
+      ) ?? false,
+    [acceso],
+  );
+
   const proyectoSeleccionado = proyectos.find(
     (proyecto) => proyecto.id === idProyecto,
   );
+
+  const seleccionarProyecto = (nuevoIdProyecto: string) => {
+    setModoProyecto('detalle');
+    setMensajeProyecto(null);
+    setError(null);
+
+    if (nuevoIdProyecto === idProyecto) {
+      return;
+    }
+
+    setAcceso(null);
+    setModelos([]);
+    setCargando(true);
+    setIdProyecto(nuevoIdProyecto);
+  };
+
+  const crearProyecto = async (valores: ProyectoFormValores) => {
+    setGuardandoProyecto(true);
+    setError(null);
+    setMensajeProyecto(null);
+
+    try {
+      const creado = await crearProyectoApi({
+        nombre: valores.nombre,
+        descripcion: valores.descripcion || undefined,
+      });
+
+      setProyectos((actuales) => [
+        creado,
+        ...actuales.filter((item) => item.id !== creado.id),
+      ]);
+      setModoProyecto('detalle');
+      setMensajeProyecto('Proyecto creado correctamente.');
+      setAcceso(null);
+      setModelos([]);
+      setCargando(true);
+      setIdProyecto(creado.id);
+    } catch (unknownError: unknown) {
+      setError(mensajeError(unknownError));
+    } finally {
+      setGuardandoProyecto(false);
+    }
+  };
+
+  const editarProyecto = async (valores: ProyectoFormValores) => {
+    if (!idProyecto || !proyectoSeleccionado) {
+      return;
+    }
+
+    setGuardandoProyecto(true);
+    setError(null);
+    setMensajeProyecto(null);
+
+    try {
+      const actualizado = await modificarProyectoApi(idProyecto, {
+        nombre: valores.nombre,
+        descripcion: valores.descripcion || null,
+        configuracion: proyectoSeleccionado.configuracion,
+      });
+
+      setProyectos((actuales) =>
+        actuales.map((item) => (item.id === actualizado.id ? actualizado : item)),
+      );
+      setAcceso((actual) =>
+        actual ? { ...actual, proyecto: actualizado } : actual,
+      );
+      setModoProyecto('detalle');
+      setMensajeProyecto('Información del proyecto actualizada correctamente.');
+    } catch (unknownError: unknown) {
+      setError(mensajeError(unknownError));
+    } finally {
+      setGuardandoProyecto(false);
+    }
+  };
 
   const abrirModelo = async (idModelo: string) => {
     if (!idProyecto) {
@@ -186,23 +292,32 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
 
       <main className="workspace-main">
         <aside className="project-sidebar">
-          <h2>Proyectos</h2>
+          <div className="project-sidebar-heading">
+            <h2>Proyectos</h2>
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() => {
+                setModoProyecto('crear');
+                setMensajeProyecto(null);
+                setError(null);
+              }}
+            >
+              + Nuevo
+            </button>
+          </div>
+
           {proyectos.length === 0 && !cargando && (
-            <p className="muted">No tienes proyectos disponibles.</p>
+            <p className="muted">Todavía no tienes proyectos.</p>
           )}
+
           <div className="project-list">
             {proyectos.map((proyecto) => (
               <button
                 type="button"
-                className={proyecto.id === idProyecto ? 'active' : ''}
+                className={proyecto.id === idProyecto && modoProyecto !== 'crear' ? 'active' : ''}
                 key={proyecto.id}
-                onClick={() => {
-                  if (proyecto.id !== idProyecto) {
-                    setCargando(true);
-                    setError(null);
-                    setIdProyecto(proyecto.id);
-                  }
-                }}
+                onClick={() => seleccionarProyecto(proyecto.id)}
               >
                 <strong>{proyecto.nombre}</strong>
                 <span>{proyecto.estado}</span>
@@ -212,69 +327,123 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
         </aside>
 
         <section className="models-section">
-          <div className="section-heading">
-            <div>
-              <div className="eyebrow">Proyecto seleccionado</div>
-              <h2>{proyectoSeleccionado?.nombre ?? 'Selecciona un proyecto'}</h2>
-              {acceso && (
-                <p className="muted">
-                  Rol: {acceso.rol.nombre} ·{' '}
-                  {puedeEditar ? 'edición habilitada' : 'solo lectura'}
-                </p>
-              )}
-            </div>
-
-            {puedeEditar && idProyecto && (
-              <form className="new-model-form" onSubmit={(event) => void crearModelo(event)}>
-                <input
-                  placeholder="Nombre del nuevo modelo"
-                  value={nombreNuevoModelo}
-                  maxLength={150}
-                  onChange={(event) => setNombreNuevoModelo(event.target.value)}
-                />
-                <button className="primary-button" disabled={creando}>
-                  {creando ? 'Creando…' : '+ Nuevo modelo'}
-                </button>
-              </form>
-            )}
-          </div>
-
           {error && <div className="alert error-alert">{error}</div>}
+          {mensajeProyecto && <div className="alert success-alert">{mensajeProyecto}</div>}
           {cargando && <div className="alert">Cargando…</div>}
 
-          <div className="model-grid">
-            {modelos.map((modelo) => (
-              <article className="model-card" key={modelo.id}>
-                <div>
-                  <span className="version-chip">v{modelo.version}</span>
-                  <h3>{modelo.nombre}</h3>
-                  <p>{modelo.descripcion || 'Sin descripción'}</p>
-                </div>
-                <div className="model-card-footer">
-                  <span>
-                    Actualizado{' '}
-                    {new Date(modelo.fechaActualizacion).toLocaleString()}
-                  </span>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    onClick={() => void abrirModelo(modelo.id)}
-                  >
-                    Abrir
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+          {modoProyecto === 'crear' && (
+            <ProyectoForm
+              modo="crear"
+              guardando={guardandoProyecto}
+              onGuardar={crearProyecto}
+              onCancelar={() => setModoProyecto('detalle')}
+            />
+          )}
 
-          {!cargando && idProyecto && modelos.length === 0 && (
-            <div className="empty-state">
-              <h3>No hay modelos UML en este proyecto</h3>
-              <p>
-                {puedeEditar
-                  ? 'Crea el primer diagrama de clases para comenzar.'
-                  : 'No existen modelos disponibles para consultar.'}
-              </p>
+          {modoProyecto === 'editar' && proyectoSeleccionado && (
+            <ProyectoForm
+              modo="editar"
+              proyecto={proyectoSeleccionado}
+              guardando={guardandoProyecto}
+              onGuardar={editarProyecto}
+              onCancelar={() => setModoProyecto('detalle')}
+            />
+          )}
+
+          {modoProyecto === 'detalle' && proyectoSeleccionado && (
+            <>
+              <ProyectoDetalle
+                proyecto={proyectoSeleccionado}
+                acceso={acceso}
+                puedeModificar={puedeModificarProyecto}
+                onEditar={() => {
+                  setModoProyecto('editar');
+                  setMensajeProyecto(null);
+                  setError(null);
+                }}
+              />
+
+              <div className="section-heading models-heading-block">
+                <div>
+                  <div className="eyebrow">Modelado UML</div>
+                  <h2>Modelos del proyecto</h2>
+                  {acceso && (
+                    <p className="muted">
+                      Rol: {acceso.rol.nombre} ·{' '}
+                      {puedeEditar ? 'edición habilitada' : 'solo lectura'}
+                    </p>
+                  )}
+                </div>
+
+                {puedeEditar && idProyecto && (
+                  <form className="new-model-form" onSubmit={(event) => void crearModelo(event)}>
+                    <input
+                      placeholder="Nombre del nuevo modelo"
+                      value={nombreNuevoModelo}
+                      maxLength={150}
+                      onChange={(event) => setNombreNuevoModelo(event.target.value)}
+                    />
+                    <button className="primary-button" disabled={creando}>
+                      {creando ? 'Creando…' : '+ Nuevo modelo'}
+                    </button>
+                  </form>
+                )}
+              </div>
+
+              <div className="model-grid">
+                {modelos.map((modelo) => (
+                  <article className="model-card" key={modelo.id}>
+                    <div>
+                      <span className="version-chip">v{modelo.version}</span>
+                      <h3>{modelo.nombre}</h3>
+                      <p>{modelo.descripcion || 'Sin descripción'}</p>
+                    </div>
+                    <div className="model-card-footer">
+                      <span>
+                        Actualizado{' '}
+                        {new Date(modelo.fechaActualizacion).toLocaleString()}
+                      </span>
+                      <button
+                        type="button"
+                        className="primary-button"
+                        onClick={() => void abrirModelo(modelo.id)}
+                      >
+                        Abrir
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {!cargando && idProyecto && modelos.length === 0 && (
+                <div className="empty-state">
+                  <h3>No hay modelos UML en este proyecto</h3>
+                  <p>
+                    {puedeEditar
+                      ? 'Crea el primer diagrama de clases para comenzar.'
+                      : 'No existen modelos disponibles para consultar.'}
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {modoProyecto === 'detalle' && !proyectoSeleccionado && !cargando && (
+            <div className="no-project-state">
+              <div>
+                <div className="eyebrow">Primer proyecto</div>
+                <h2>Comienza creando un proyecto colaborativo</h2>
+                <p>
+                  Al crearlo quedarás incorporado automáticamente como Anfitrión y podrás comenzar a modelar.
+                </p>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setModoProyecto('crear')}
+                >
+                  Crear proyecto
+                </button>
+              </div>
             </div>
           )}
         </section>
