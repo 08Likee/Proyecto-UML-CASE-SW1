@@ -2,8 +2,8 @@ import {
   guardarSesion,
   leerSesion,
   limpiarSesion,
-} from '../../features/auth/auth.storage';
-import type { AuthSession } from '../../features/auth/auth.types';
+} from '../../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/storage/auth.storage';
+import type { AuthSession } from '../../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/types/auth.types';
 
 const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
 

@@ -1,6 +1,6 @@
-import { apiRequest } from '../../shared/api/http';
-import { guardarSesion, limpiarSesion } from './auth.storage';
-import type { AuthSession } from './auth.types';
+import { apiRequest } from '../../../../shared/api/http';
+import { guardarSesion, limpiarSesion } from '../storage/auth.storage';
+import type { AuthSession } from '../types/auth.types';
 
 export interface LoginEntrada {
   correo: string;

@@ -1,4 +1,4 @@
-import type { AuthSession } from './auth.types';
+import type { AuthSession } from '../types/auth.types';
 
 const STORAGE_KEY = 'case-auth-session';
 

@@ -1,9 +1,9 @@
-import { apiRequest } from '../../shared/api/http';
+import { apiRequest } from '../../../../shared/api/http';
 import type {
   ModeloUml,
   ModeloUmlContenido,
   ModeloUmlResumen,
-} from './modelo-uml.types';
+} from '../types/modelo-uml.types';
 
 export function listarModelosUml(
   idProyecto: string,

@@ -1,23 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import './App.css';
-import { cerrarSesion, iniciarSesion } from './features/auth/auth.api';
-import { leerSesion } from './features/auth/auth.storage';
-import type { AuthSession } from './features/auth/auth.types';
-import { ModeladorUml } from './features/modelado-uml/components/ModeladorUml';
+import { ThemeToggle } from '../shared/theme/ThemeToggle';
+import { cerrarSesion, iniciarSesion } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/api/auth.api';
+import { leerSesion } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/storage/auth.storage';
+import type { AuthSession } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/types/auth.types';
+import { ModeladorUml } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/components/ModeladorUml';
 import {
   crearModeloUml,
   listarModelosUml,
   obtenerModeloUml,
-} from './features/modelado-uml/modelos-uml.api';
-import { useModeladorStore } from './features/modelado-uml/modelador.store';
-import type { ModeloUmlResumen } from './features/modelado-uml/modelo-uml.types';
+} from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/api/modelos-uml.api';
+import { useModeladorStore } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/store/modelador.store';
+import type { ModeloUmlResumen } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/types/modelo-uml.types';
 import {
   listarProyectos,
   obtenerAccesoProyecto,
   type AccesoProyecto,
   type Proyecto,
-} from './features/proyectos/proyectos.api';
+} from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/api/proyectos.api';
 
 function mensajeError(error: unknown): string {
   return error instanceof Error ? error.message : 'Ocurrió un error inesperado';
@@ -47,6 +48,7 @@ function LoginView({ alIniciar }: { alIniciar: (sesion: AuthSession) => void }) 
   return (
     <main className="login-page">
       <section className="login-card">
+        <div className="login-theme-row"><ThemeToggle /></div>
         <div className="brand-mark">UML</div>
         <h1>Herramienta CASE colaborativa</h1>
         <p className="muted">
@@ -228,6 +230,7 @@ function App() {
           <h1>Modelado UML</h1>
         </div>
         <div className="header-user">
+          <ThemeToggle />
           <span>
             {sesion.usuario.nombre} {sesion.usuario.apellido}
           </span>

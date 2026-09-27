@@ -11,13 +11,13 @@ button {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  color: #283244;
+  color: var(--text);
   font-weight: 600;
 }
 
 button:hover:not(:disabled) {
-  border-color: #aab6cd;
-  background: #f7f9fd;
+  border-color: var(--primary-soft-border);
+  background: var(--surface-hover);
 }
 
 .primary-button {
@@ -42,8 +42,8 @@ textarea {
   padding: 9px 10px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  background: white;
-  color: #1f2937;
+  background: var(--input-background);
+  color: var(--text);
   outline: none;
 }
 
@@ -57,7 +57,7 @@ textarea:focus {
 label {
   display: grid;
   gap: 6px;
-  color: #4b5565;
+  color: var(--text-secondary);
   font-size: 13px;
   font-weight: 600;
 }
@@ -78,14 +78,14 @@ label {
 .alert {
   margin: 14px 0;
   padding: 11px 13px;
-  border: 1px solid #d9e0ee;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #f7f9fd;
+  background: var(--surface-hover);
 }
 
 .error-alert {
-  border-color: #f1c7c4;
-  background: #fff4f3;
+  border-color: var(--error-border);
+  background: var(--error-background);
   color: var(--danger);
 }
 
@@ -96,7 +96,7 @@ label {
   padding: 24px;
   background:
     radial-gradient(circle at top left, rgba(49, 86, 211, 0.14), transparent 35%),
-    #f5f7fb;
+    var(--background);
 }
 
 .login-card {
@@ -105,7 +105,7 @@ label {
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface);
-  box-shadow: 0 18px 60px rgba(33, 47, 80, 0.1);
+  box-shadow: var(--shadow);
 }
 
 .login-card h1 {
@@ -125,7 +125,7 @@ label {
   height: 52px;
   place-items: center;
   border-radius: 12px;
-  background: #e8edff;
+  background: var(--primary-soft);
   color: var(--primary);
   font-weight: 900;
 }
@@ -153,7 +153,7 @@ label {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #4b5565;
+  color: var(--text-secondary);
 }
 
 .workspace-main {
@@ -165,7 +165,7 @@ label {
 .project-sidebar {
   padding: 24px 18px;
   border-right: 1px solid var(--border);
-  background: #fbfcfe;
+  background: var(--surface-subtle);
 }
 
 .project-sidebar h2 {
@@ -192,9 +192,9 @@ label {
 }
 
 .project-list button.active {
-  border-color: #9dafee;
-  background: #eef2ff;
-  color: #203d9e;
+  border-color: var(--primary-soft-border);
+  background: var(--primary-soft);
+  color: var(--primary-text);
 }
 
 .models-section {
@@ -234,7 +234,7 @@ label {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
-  box-shadow: 0 4px 16px rgba(33, 47, 80, 0.04);
+  box-shadow: var(--card-shadow);
 }
 
 .model-card h3 {
@@ -259,9 +259,9 @@ label {
 
 .empty-state {
   padding: 54px 24px;
-  border: 1px dashed #c8d0df;
+  border: 1px dashed var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--surface-soft);
   text-align: center;
 }
 
@@ -279,25 +279,25 @@ label {
 
 .version-chip {
   margin-left: 8px;
-  background: #eef2ff;
-  color: #2947af;
+  background: var(--primary-soft);
+  color: var(--primary-text);
 }
 
 .readonly-chip {
-  background: #f1f3f7;
-  color: #606b7d;
+  background: var(--readonly-background);
+  color: var(--readonly-text);
 }
 
 .dirty-chip {
-  background: #fff5d7;
-  color: #835d00;
+  background: var(--warning-background);
+  color: var(--warning-text);
 }
 
 .modeler-shell {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   height: 100vh;
-  background: #eef1f6;
+  background: var(--modeler-background);
 }
 
 .modeler-toolbar {
@@ -326,9 +326,9 @@ label {
 
 .modeler-message {
   padding: 8px 16px;
-  border-bottom: 1px solid #d8dfec;
-  background: #f9fbff;
-  color: #43506a;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -341,7 +341,7 @@ label {
 .diagram-canvas {
   min-width: 0;
   min-height: 0;
-  background: #f6f7fa;
+  background: var(--canvas);
 }
 
 .inspector {
@@ -386,7 +386,7 @@ label {
   display: grid;
   gap: 10px;
   padding-top: 12px;
-  border-top: 1px solid #edf0f5;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .inspector-section-title {
@@ -407,9 +407,9 @@ label {
   display: grid;
   gap: 8px;
   padding: 10px;
-  border: 1px solid #e7eaf1;
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--surface-soft);
 }
 
 .editor-grid-3 {
@@ -463,8 +463,8 @@ label {
 }
 
 .danger-button {
-  border-color: #f1beb9;
-  background: #fff5f4;
+  border-color: var(--danger-border);
+  background: var(--danger-background);
   color: var(--danger);
 }
 
@@ -479,8 +479,8 @@ label {
   overflow: hidden;
   margin: -1px;
   border-radius: 5px;
-  background: white;
-  color: #1f2937;
+  background: var(--input-background);
+  color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 11px;
   text-align: left;
@@ -488,9 +488,9 @@ label {
 
 .uml-class-name {
   padding: 9px 10px;
-  border-bottom: 1px solid #cdd4e1;
-  background: #eef2ff;
-  color: #233d92;
+  border-bottom: 1px solid var(--border);
+  background: var(--primary-soft);
+  color: var(--primary-text);
   font-size: 13px;
   font-weight: 800;
   text-align: center;
@@ -499,7 +499,7 @@ label {
 .uml-class-section {
   min-height: 28px;
   padding: 7px 9px;
-  border-bottom: 1px solid #e2e6ed;
+  border-bottom: 1px solid var(--border-soft);
   line-height: 1.5;
 }
 
@@ -508,7 +508,7 @@ label {
 }
 
 .uml-empty {
-  color: #98a1b2;
+  color: var(--muted);
   font-style: italic;
 }
 
@@ -522,7 +522,7 @@ label {
 }
 
 .react-flow__edge-textbg {
-  fill: #fff;
+  fill: var(--surface);
   fill-opacity: 0.95;
 }
 
@@ -564,5 +564,132 @@ label {
     max-height: 45vh;
     border-top: 1px solid var(--border);
     border-left: 0;
+  }
+}
+
+
+.theme-toggle {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.login-theme-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.react-flow__controls button {
+  background: var(--surface);
+  color: var(--text);
+  border-bottom-color: var(--border);
+}
+
+.react-flow__controls button:hover {
+  background: var(--surface-hover);
+}
+
+.react-flow__controls button svg {
+  fill: currentColor;
+}
+
+.react-flow__minimap {
+  background: var(--surface);
+}
+
+@media (max-width: 768px) {
+  .login-page {
+    padding: 16px;
+  }
+
+  .login-card {
+    padding: 24px;
+  }
+
+  .app-header,
+  .models-section {
+    padding-right: 18px;
+    padding-left: 18px;
+  }
+
+  .header-user,
+  .toolbar-group,
+  .model-card-footer {
+    flex-wrap: wrap;
+  }
+
+  .new-model-form {
+    flex-direction: column;
+  }
+
+  .modeler-shell {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .modeler-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .modeler-toolbar > .toolbar-group {
+    width: 100%;
+  }
+
+  .model-name-input {
+    width: min(100%, 260px);
+  }
+
+  .modeler-main {
+    grid-template-rows: minmax(480px, 65vh) auto;
+  }
+
+  .inspector {
+    max-height: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 20px;
+    border-radius: 14px;
+  }
+
+  .login-card h1 {
+    font-size: 24px;
+  }
+
+  .app-header {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  .header-user {
+    width: 100%;
+  }
+
+  .models-section {
+    padding-top: 22px;
+  }
+
+  .model-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .editor-grid-3,
+  .editor-grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .parameter-row {
+    grid-template-columns: 1fr 1fr 34px;
+  }
+
+  .theme-toggle span:last-child {
+    display: none;
   }
 }

@@ -7,7 +7,7 @@ import type {
   ParametroUml,
   RelacionUml,
   TipoRelacionUml,
-} from './modelo-uml.types';
+} from '../types/modelo-uml.types';
 
 export type ElementoSeleccionado =
   | { tipo: 'CLASE'; id: string }

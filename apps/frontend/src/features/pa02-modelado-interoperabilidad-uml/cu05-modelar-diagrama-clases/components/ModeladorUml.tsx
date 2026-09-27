@@ -10,15 +10,16 @@ import {
   type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { guardarModeloUml } from '../modelos-uml.api';
-import { useModeladorStore } from '../modelador.store';
+import { ThemeToggle } from '../../../../shared/theme/ThemeToggle';
+import { guardarModeloUml } from '../api/modelos-uml.api';
+import { useModeladorStore } from '../store/modelador.store';
 import type {
   ClaseUml,
   MultiplicidadUml,
   RelacionUml,
   TipoRelacionUml,
   VisibilidadUml,
-} from '../modelo-uml.types';
+} from '../types/modelo-uml.types';
 
 const VISIBILIDADES: VisibilidadUml[] = [
   'PUBLICA',
@@ -627,6 +628,7 @@ export function ModeladorUml({
         </div>
 
         <div className="toolbar-group">
+          <ThemeToggle />
           {!puedeEditar && <span className="readonly-chip">Solo lectura</span>}
           {sucio && <span className="dirty-chip">Cambios sin guardar</span>}
           {puedeEditar && (
