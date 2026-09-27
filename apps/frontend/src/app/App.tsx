@@ -4,6 +4,7 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/styles/cu01.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/styles/cu02.css';
+import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu03-gestionar-participantes-roles/styles/cu03.css';
 import { ThemeToggle } from '../shared/theme/ThemeToggle';
 import {
   cerrarSesion,
@@ -23,6 +24,7 @@ import { RegistroView } from '../features/pa01-gestion-usuarios-proyectos-colabo
 import { RecuperarContrasenaView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/RecuperarContrasenaView';
 import { PerfilView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/PerfilView';
 import { ProyectoDetalle } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/components/ProyectoDetalle';
+import { GestionParticipantes } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu03-gestionar-participantes-roles/components/GestionParticipantes';
 import {
   ProyectoForm,
   type ProyectoFormValores,
@@ -63,7 +65,7 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const [error, setError] = useState<string | null>(null);
   const [creando, setCreando] = useState(false);
   const [nombreNuevoModelo, setNombreNuevoModelo] = useState('');
-  const [modoProyecto, setModoProyecto] = useState<'detalle' | 'crear' | 'editar'>('detalle');
+  const [modoProyecto, setModoProyecto] = useState<'detalle' | 'crear' | 'editar' | 'administrar'>('detalle');
   const [guardandoProyecto, setGuardandoProyecto] = useState(false);
   const [mensajeProyecto, setMensajeProyecto] = useState<string | null>(null);
   const modeloAbierto = useModeladorStore((state) => state.modelo);
@@ -128,6 +130,16 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
           permiso.recurso === 'PROYECTO' &&
           permiso.accion === 'MODIFICAR' &&
           permiso.permitido,
+      ) ?? false,
+    [acceso],
+  );
+
+  const puedeAdministrarParticipantes = useMemo(
+    () =>
+      acceso?.permisos.some(
+        (permiso) =>
+          permiso.permitido &&
+          (permiso.recurso === 'PARTICIPANTE' || permiso.recurso === 'ROL'),
       ) ?? false,
     [acceso],
   );
@@ -350,12 +362,33 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
             />
           )}
 
+          {modoProyecto === 'administrar' &&
+            proyectoSeleccionado &&
+            acceso && (
+              <GestionParticipantes
+                idProyecto={proyectoSeleccionado.id}
+                nombreProyecto={proyectoSeleccionado.nombre}
+                acceso={acceso}
+                onVolver={() => {
+                  setModoProyecto('detalle');
+                  setMensajeProyecto(null);
+                  setError(null);
+                }}
+              />
+            )}
+
           {modoProyecto === 'detalle' && proyectoSeleccionado && (
             <>
               <ProyectoDetalle
                 proyecto={proyectoSeleccionado}
                 acceso={acceso}
                 puedeModificar={puedeModificarProyecto}
+                puedeAdministrarParticipantes={puedeAdministrarParticipantes}
+                onAdministrarParticipantes={() => {
+                  setModoProyecto('administrar');
+                  setMensajeProyecto(null);
+                  setError(null);
+                }}
                 onEditar={() => {
                   setModoProyecto('editar');
                   setMensajeProyecto(null);

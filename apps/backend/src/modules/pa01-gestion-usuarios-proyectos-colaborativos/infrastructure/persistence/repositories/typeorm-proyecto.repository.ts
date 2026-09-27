@@ -10,6 +10,9 @@ import {
 } from '../../../domain/models/proyecto';
 import {
   ROL_ANFITRION,
+  ROL_EDITOR,
+  ROL_ESPECTADOR,
+  rolPredeterminadoIncluyePermiso,
   type Rol,
   type RolEstado,
 } from '../../../domain/models/rol';
@@ -19,9 +22,9 @@ import {
   ProyectoRepository,
 } from '../../../domain/repositories/proyecto.repository';
 import { MembresiaEntity } from '../entities/membresia.entity';
+import { PermisoEntity } from '../entities/permiso.entity';
 import { ProyectoEntity } from '../entities/proyecto.entity';
 import { RolEntity } from '../entities/rol.entity';
-
 import { RolPermisoEntity } from '../entities/rol-permiso.entity';
 
 @Injectable()
@@ -46,32 +49,60 @@ export class TypeOrmProyectoRepository implements ProyectoRepository {
         }),
       );
 
-      const rolAnfitrion = await rolRepository.save(
+      const rolesPredeterminados = await rolRepository.save([
         rolRepository.create({
           nombre: ROL_ANFITRION,
           descripcion: 'Rol predeterminado del creador del proyecto',
           esPredeterminado: true,
           idProyecto: proyecto.id,
         }),
+        rolRepository.create({
+          nombre: ROL_EDITOR,
+          descripcion:
+            'Rol predeterminado para editar modelos sin administrar el proyecto',
+          esPredeterminado: true,
+          idProyecto: proyecto.id,
+        }),
+        rolRepository.create({
+          nombre: ROL_ESPECTADOR,
+          descripcion:
+            'Rol predeterminado de consulta sin permisos de edición',
+          esPredeterminado: true,
+          idProyecto: proyecto.id,
+        }),
+      ]);
+
+      const rolAnfitrion = rolesPredeterminados.find(
+        (rol) => rol.nombre === ROL_ANFITRION,
       );
 
-      const permisos = await manager.query<
-        Array<{
-          id: string;
-        }>
-      >(`
-    SELECT id
-    FROM permiso
-    WHERE estado = 'ACTIVO'
-  `);
+      if (!rolAnfitrion) {
+        throw new Error('No se pudo crear el rol Anfitrión del proyecto');
+      }
 
-      if (permisos.length > 0) {
-        await manager.getRepository(RolPermisoEntity).save(
-          permisos.map((permiso) => ({
-            idRol: rolAnfitrion.id,
+      const permisos = await manager.getRepository(PermisoEntity).find({
+        where: {
+          estado: 'ACTIVO',
+        },
+      });
+
+      const asociaciones = rolesPredeterminados.flatMap((rol) =>
+        permisos
+          .filter((permiso) =>
+            rolPredeterminadoIncluyePermiso(
+              rol.nombre,
+              permiso.recurso,
+              permiso.accion,
+            ),
+          )
+          .map((permiso) => ({
+            idRol: rol.id,
             idPermiso: permiso.id,
           })),
-        );
+      );
+
+      if (asociaciones.length > 0) {
+        await manager.getRepository(RolPermisoEntity).save(asociaciones);
       }
 
       const membresia = await membresiaRepository.save(

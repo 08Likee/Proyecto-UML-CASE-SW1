@@ -1460,6 +1460,114 @@ describe('Aplicacion (e2e)', () => {
       id_usuario: registro.body.id,
       membresia_estado: 'ACTIVA',
     });
+
+    const rolesPredeterminados = await dataSource.query<
+      Array<{
+        nombre: string;
+        es_predeterminado: boolean;
+      }>
+    >(
+      `
+        SELECT
+          nombre,
+          es_predeterminado
+        FROM rol
+        WHERE id_proyecto = $1
+        ORDER BY nombre ASC
+      `,
+      [response.body.id],
+    );
+
+    expect(rolesPredeterminados).toEqual([
+      {
+        nombre: 'Anfitrión',
+        es_predeterminado: true,
+      },
+      {
+        nombre: 'Editor',
+        es_predeterminado: true,
+      },
+      {
+        nombre: 'Espectador',
+        es_predeterminado: true,
+      },
+    ]);
+
+    const permisosRoles = await dataSource.query<
+      Array<{
+        rol_nombre: string;
+        recurso: string;
+        accion: string;
+      }>
+    >(
+      `
+        SELECT
+          r.nombre AS rol_nombre,
+          p.recurso,
+          p.accion
+        FROM rol r
+        INNER JOIN rol_permiso rp
+          ON rp.id_rol = r.id
+        INNER JOIN permiso p
+          ON p.id = rp.id_permiso
+        WHERE
+          r.id_proyecto = $1
+          AND r.nombre IN ('Editor', 'Espectador')
+        ORDER BY
+          r.nombre ASC,
+          p.recurso ASC,
+          p.accion ASC
+      `,
+      [response.body.id],
+    );
+
+    expect(permisosRoles).toEqual([
+      {
+        rol_nombre: 'Editor',
+        recurso: 'MODELO',
+        accion: 'CONSULTAR',
+      },
+      {
+        rol_nombre: 'Editor',
+        recurso: 'MODELO',
+        accion: 'EDITAR',
+      },
+      {
+        rol_nombre: 'Editor',
+        recurso: 'PARTICIPANTE',
+        accion: 'CONSULTAR',
+      },
+      {
+        rol_nombre: 'Editor',
+        recurso: 'PROYECTO',
+        accion: 'CONSULTAR',
+      },
+      {
+        rol_nombre: 'Editor',
+        recurso: 'ROL',
+        accion: 'CONSULTAR',
+      },
+      {
+        rol_nombre: 'Espectador',
+        recurso: 'MODELO',
+        accion: 'CONSULTAR',
+      },
+      {
+        rol_nombre: 'Espectador',
+        recurso: 'PARTICIPANTE',
+        accion: 'CONSULTAR',
+      },
+      {
+        rol_nombre: 'Espectador',
+        recurso: 'PROYECTO',
+        accion: 'CONSULTAR',
+      },
+      {
+        rol_nombre: 'Espectador',
+        recurso: 'ROL',
+        accion: 'CONSULTAR',
+      },
+    ]);
   });
 
   it('/api/proyectos rechaza la creación sin autenticación', async () => {

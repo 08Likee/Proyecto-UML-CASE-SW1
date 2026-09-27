@@ -4,7 +4,9 @@ interface ProyectoDetalleProps {
   proyecto: Proyecto;
   acceso: AccesoProyecto | null;
   puedeModificar: boolean;
+  puedeAdministrarParticipantes: boolean;
   onEditar: () => void;
+  onAdministrarParticipantes: () => void;
 }
 
 function formatearFecha(valor: string): string {
@@ -15,7 +17,9 @@ export function ProyectoDetalle({
   proyecto,
   acceso,
   puedeModificar,
+  puedeAdministrarParticipantes,
   onEditar,
+  onAdministrarParticipantes,
 }: ProyectoDetalleProps) {
   return (
     <section className="project-management-card">
@@ -28,11 +32,18 @@ export function ProyectoDetalle({
           </p>
         </div>
 
-        {puedeModificar && (
-          <button type="button" onClick={onEditar}>
-            Editar proyecto
-          </button>
-        )}
+        <div className="project-management-actions">
+          {puedeAdministrarParticipantes && (
+            <button type="button" onClick={onAdministrarParticipantes}>
+              Participantes y roles
+            </button>
+          )}
+          {puedeModificar && (
+            <button type="button" onClick={onEditar}>
+              Editar proyecto
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="project-facts">

@@ -1,0 +1,333 @@
+.cu03-shell {
+  display: grid;
+  gap: 20px;
+}
+
+.cu03-heading,
+.cu03-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.cu03-heading h2,
+.cu03-card-heading h3 {
+  margin: 3px 0 5px;
+}
+
+.cu03-card {
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.cu03-inline-form,
+.cu03-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(180px, 0.8fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.cu03-inline-form label,
+.cu03-form-grid label,
+.cu03-role-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.cu03-inline-form input,
+.cu03-inline-form select,
+.cu03-form-grid input,
+.cu03-participant-actions select {
+  min-width: 0;
+}
+
+.cu03-note {
+  margin: 12px 0 0;
+}
+
+.cu03-count,
+.cu03-role-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cu03-participants {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cu03-participant {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  background: var(--surface-subtle);
+}
+
+.cu03-participant-main {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+}
+
+.cu03-participant-main > div:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.cu03-participant-main span,
+.cu03-participant-main small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+
+.cu03-avatar {
+  display: grid;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.cu03-participant-actions,
+.cu03-permission-actions,
+.cu03-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cu03-participant-actions select {
+  max-width: 190px;
+}
+
+.danger-button {
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.cu03-permission-list {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.cu03-permission-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(130px, 0.6fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+}
+
+.cu03-permission-row > div:first-child,
+.cu03-permission-status {
+  display: grid;
+  gap: 3px;
+}
+
+.cu03-permission-row span,
+.cu03-permission-row small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.cu03-permission-status .allowed {
+  color: var(--success-text);
+  font-weight: 800;
+}
+
+.cu03-permission-status .denied {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.cu03-role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.cu03-role-card {
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface-subtle);
+}
+
+.cu03-role-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cu03-role-card span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.cu03-role-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.cu03-role-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.cu03-role-form .cu03-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.cu03-permission-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cu03-permission-checkboxes label {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  background: var(--surface-subtle);
+  cursor: pointer;
+}
+
+.cu03-permission-checkboxes input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.cu03-permission-checkboxes span {
+  display: grid;
+  gap: 2px;
+}
+
+.cu03-permission-checkboxes small {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.project-management-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 1050px) {
+  .cu03-role-grid,
+  .cu03-permission-checkboxes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .cu03-permission-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .cu03-permission-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .cu03-heading,
+  .cu03-card-heading,
+  .cu03-participant {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cu03-heading > button,
+  .cu03-card-heading > button,
+  .project-management-actions,
+  .project-management-actions button {
+    width: 100%;
+  }
+
+  .cu03-inline-form,
+  .cu03-role-form .cu03-form-grid,
+  .cu03-permission-row {
+    grid-template-columns: 1fr;
+  }
+
+  .cu03-participant-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cu03-participant-actions select,
+  .cu03-participant-actions button {
+    width: 100%;
+    max-width: none;
+  }
+
+  .cu03-permission-actions {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .cu03-card {
+    padding: 17px;
+  }
+
+  .cu03-role-grid,
+  .cu03-permission-checkboxes {
+    grid-template-columns: 1fr;
+  }
+
+  .cu03-permission-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cu03-permission-actions button {
+    width: 100%;
+  }
+}
