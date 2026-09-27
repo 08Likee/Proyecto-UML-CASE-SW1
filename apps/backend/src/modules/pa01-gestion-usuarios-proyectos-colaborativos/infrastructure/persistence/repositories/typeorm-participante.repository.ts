@@ -19,6 +19,8 @@ import {
   type UsuarioInvitable,
 } from '../../../domain/repositories/participante.repository';
 
+import { type MembresiaEstado } from '../../../domain/models/membresia';
+
 import { InvitacionEntity } from '../entities/invitacion.entity';
 import { MembresiaEntity } from '../entities/membresia.entity';
 
@@ -79,28 +81,27 @@ export class TypeOrmParticipanteRepository implements ParticipanteRepository {
     return filas[0] ?? null;
   }
 
-  async tieneMembresiaRegistrada(
+  async obtenerEstadoMembresia(
     idProyecto: string,
     idUsuario: string,
-  ): Promise<boolean> {
+  ): Promise<MembresiaEstado | null> {
     const filas = await this.dataSource.query<
       Array<{
-        existe: boolean;
+        estado: MembresiaEstado;
       }>
     >(
       `
-          SELECT EXISTS (
-            SELECT 1
-            FROM membresia
-            WHERE
-              id_proyecto = $1
-              AND id_usuario = $2
-          ) AS existe
+          SELECT estado
+          FROM membresia
+          WHERE
+            id_proyecto = $1
+            AND id_usuario = $2
+          LIMIT 1
         `,
       [idProyecto, idUsuario],
     );
 
-    return Boolean(filas[0]?.existe);
+    return filas[0]?.estado ?? null;
   }
 
   async tieneInvitacionPendiente(

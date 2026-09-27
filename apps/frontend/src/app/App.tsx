@@ -5,6 +5,7 @@ import './App.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/styles/cu01.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/styles/cu02.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu03-gestionar-participantes-roles/styles/cu03.css';
+import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu04-acceder-proyecto-colaborativo/styles/cu04.css';
 import { ThemeToggle } from '../shared/theme/ThemeToggle';
 import {
   cerrarSesion,
@@ -25,6 +26,7 @@ import { RecuperarContrasenaView } from '../features/pa01-gestion-usuarios-proye
 import { PerfilView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/views/PerfilView';
 import { ProyectoDetalle } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/components/ProyectoDetalle';
 import { GestionParticipantes } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu03-gestionar-participantes-roles/components/GestionParticipantes';
+import { InvitacionesView } from '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu04-acceder-proyecto-colaborativo/views/InvitacionesView';
 import {
   ProyectoForm,
   type ProyectoFormValores,
@@ -293,6 +295,9 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
           <span>
             {sesion.usuario.nombre} {sesion.usuario.apellido}
           </span>
+          <Link className="button-link" to="/invitaciones">
+            Invitaciones
+          </Link>
           <Link className="button-link" to="/perfil">
             Mi perfil
           </Link>
@@ -549,6 +554,7 @@ function App() {
         path="/"
         element={<WorkspaceView sesion={sesion} alCerrarSesion={salir} />}
       />
+      <Route path="/invitaciones" element={<InvitacionesView />} />
       <Route
         path="/perfil"
         element={

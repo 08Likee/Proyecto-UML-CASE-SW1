@@ -1,4 +1,5 @@
 import { type Invitacion } from '../models/invitacion';
+import { type MembresiaEstado } from '../models/membresia';
 
 import {
   type DetalleMembresia,
@@ -30,10 +31,10 @@ export abstract class ParticipanteRepository {
     correo: string,
   ): Promise<UsuarioInvitable | null>;
 
-  abstract tieneMembresiaRegistrada(
+  abstract obtenerEstadoMembresia(
     idProyecto: string,
     idUsuario: string,
-  ): Promise<boolean>;
+  ): Promise<MembresiaEstado | null>;
 
   abstract tieneInvitacionPendiente(
     idProyecto: string,

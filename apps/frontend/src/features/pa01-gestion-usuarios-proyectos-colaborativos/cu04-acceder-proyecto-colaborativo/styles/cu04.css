@@ -1,0 +1,228 @@
+.invitations-page {
+  min-height: 100vh;
+  background: var(--background);
+}
+
+.invitations-header {
+  display: flex;
+  min-height: 112px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.invitations-header h1 {
+  margin: 0 0 6px;
+  font-size: clamp(26px, 4vw, 34px);
+}
+
+.invitations-header p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.invitations-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.invitations-main {
+  width: min(1100px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 32px 0 48px;
+}
+
+.invitations-success {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.invitations-success a {
+  color: inherit;
+  font-weight: 800;
+}
+
+.invitations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.invitation-card {
+  display: grid;
+  gap: 20px;
+  padding: 22px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.invitation-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.invitation-card-heading h2 {
+  margin: 8px 0 0;
+  font-size: 21px;
+}
+
+.invitation-status {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.invitation-role {
+  display: grid;
+  min-width: 150px;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: var(--surface-soft);
+}
+
+.invitation-role span,
+.invitation-dates span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.invitation-role strong {
+  color: var(--text);
+}
+
+.invitation-dates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.invitation-dates > div {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+}
+
+.invitation-dates strong {
+  font-size: 13px;
+}
+
+.invitation-help {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.invitation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.invitations-empty {
+  display: grid;
+  max-width: 620px;
+  margin: 50px auto 0;
+  justify-items: center;
+  padding: 52px 30px;
+  border: 1px dashed var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  text-align: center;
+}
+
+.invitations-empty-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  background: var(--success-background);
+  color: var(--success-text);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.invitations-empty p {
+  max-width: 480px;
+  margin-bottom: 22px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+@media (max-width: 768px) {
+  .invitations-header {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .invitations-header-actions {
+    justify-content: space-between;
+  }
+
+  .invitations-main {
+    width: min(100% - 28px, 1100px);
+    padding-top: 22px;
+  }
+
+  .invitations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .invitation-card-heading {
+    flex-direction: column;
+  }
+
+  .invitation-role {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .invitations-header-actions,
+  .invitations-success,
+  .invitation-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .invitations-header-actions > *,
+  .invitation-actions button {
+    width: 100%;
+  }
+
+  .invitation-dates {
+    grid-template-columns: 1fr;
+  }
+
+  .invitation-card {
+    padding: 17px;
+  }
+}

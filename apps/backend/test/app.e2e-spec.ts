@@ -2217,6 +2217,88 @@ describe('Aplicacion (e2e)', () => {
     });
 
     /*
+     * Un participante retirado conserva su
+     * membresía histórica como RETIRADA,
+     * pero debe poder ser invitado otra vez.
+     * Al aceptar se reactiva la misma
+     * membresía con el rol de la nueva
+     * invitación y sin excepciones antiguas.
+     */
+    await request(app.getHttpServer())
+      .put(
+        `/api/proyectos/${idProyecto}/participantes/${aceptacion.body.idMembresia}/permisos/${permisoConsultar.id}`,
+      )
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        tipoAsignacion: 'DENEGAR',
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .delete(
+        `/api/proyectos/${idProyecto}/participantes/${aceptacion.body.idMembresia}`,
+      )
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(204);
+
+    const rolesDisponibles = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/roles`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    const rolEspectador = rolesDisponibles.body.find(
+      (rol: { id: string; nombre: string; esPredeterminado: boolean }) =>
+        rol.nombre === 'Espectador' && rol.esPredeterminado === true,
+    );
+
+    expect(rolEspectador).toBeDefined();
+
+    const reinvitacion = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/invitaciones`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        correo: 'sw1-e2e-cu04-invitado@example.test',
+        idRol: rolEspectador.id,
+      })
+      .expect(201);
+
+    const reaceptacion = await request(app.getHttpServer())
+      .post(`/api/invitaciones/${reinvitacion.body.id}/aceptar`)
+      .set('Authorization', `Bearer ${tokenInvitado}`)
+      .expect(201);
+
+    expect(reaceptacion.body).toMatchObject({
+      idInvitacion: reinvitacion.body.id,
+      idProyecto,
+      idMembresia: aceptacion.body.idMembresia,
+      idRol: rolEspectador.id,
+    });
+
+    const excepcionesAnteriores = await dataSource.query<
+      Array<{ cantidad: string }>
+    >(
+      `
+        SELECT COUNT(*)::text AS cantidad
+        FROM permiso_membresia
+        WHERE id_membresia = $1
+      `,
+      [aceptacion.body.idMembresia],
+    );
+
+    expect(excepcionesAnteriores[0].cantidad).toBe('0');
+
+    const accesoReincorporado = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/acceso`)
+      .set('Authorization', `Bearer ${tokenInvitado}`)
+      .expect(200);
+
+    expect(accesoReincorporado.body.rol).toMatchObject({
+      id: rolEspectador.id,
+      nombre: 'Espectador',
+      esPredeterminado: true,
+    });
+
+    /*
      * Probamos también rechazo usando un
      * segundo proyecto, porque el mismo
      * usuario ya es miembro del primero.

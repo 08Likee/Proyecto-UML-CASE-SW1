@@ -46,16 +46,14 @@ export class InvitarParticipanteUseCase {
       );
     }
 
-    const yaPertenece =
-      await this.participanteRepository.tieneMembresiaRegistrada(
+    const estadoMembresia =
+      await this.participanteRepository.obtenerEstadoMembresia(
         entrada.idProyecto,
         usuario.id,
       );
 
-    if (yaPertenece) {
-      throw new ConflictException(
-        'El usuario ya pertenece o perteneció al proyecto',
-      );
+    if (estadoMembresia && estadoMembresia !== 'RETIRADA') {
+      throw new ConflictException('El usuario ya pertenece al proyecto');
     }
 
     const invitacionPendiente =

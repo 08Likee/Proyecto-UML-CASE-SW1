@@ -175,31 +175,71 @@ export class TypeOrmAccesoProyectoRepository implements AccesoProyectoRepository
       const membresias = await manager.query<
         Array<{
           id: string;
+          estado: string;
         }>
       >(
         `
-              SELECT id
+              SELECT
+                id,
+                estado
               FROM membresia
               WHERE
                 id_usuario = $1
                 AND id_proyecto = $2
               LIMIT 1
+              FOR UPDATE
             `,
         [idUsuario, invitacion.idProyecto],
       );
 
-      if (membresias[0]) {
-        return {
-          tipo: 'YA_MIEMBRO',
-        };
-      }
+      const membresiaExistente = membresias[0];
 
-      const creadas = await manager.query<
-        Array<{
-          id: string;
-        }>
-      >(
-        `
+      let idMembresia: string;
+
+      if (membresiaExistente) {
+        if (membresiaExistente.estado !== 'RETIRADA') {
+          return {
+            tipo: 'YA_MIEMBRO',
+          };
+        }
+
+        /*
+         * La membresía es única por usuario/proyecto.
+         * Si el participante fue retirado y acepta una
+         * nueva invitación, reactivamos la misma fila
+         * con el rol actual y eliminamos excepciones
+         * particulares heredadas de la participación
+         * anterior.
+         */
+        await manager.query(
+          `
+              DELETE FROM permiso_membresia
+              WHERE id_membresia = $1
+            `,
+          [membresiaExistente.id],
+        );
+
+        await manager.query(
+          `
+              UPDATE membresia
+              SET
+                estado = 'ACTIVA',
+                id_rol = $1,
+                fecha_union = CURRENT_TIMESTAMP,
+                fecha_ultima_actividad = CURRENT_TIMESTAMP
+              WHERE id = $2
+            `,
+          [invitacion.idRol, membresiaExistente.id],
+        );
+
+        idMembresia = membresiaExistente.id;
+      } else {
+        const creadas = await manager.query<
+          Array<{
+            id: string;
+          }>
+        >(
+          `
               INSERT INTO membresia (
                 id_usuario,
                 id_proyecto,
@@ -208,10 +248,11 @@ export class TypeOrmAccesoProyectoRepository implements AccesoProyectoRepository
               VALUES ($1, $2, $3)
               RETURNING id
             `,
-        [idUsuario, invitacion.idProyecto, invitacion.idRol],
-      );
+          [idUsuario, invitacion.idProyecto, invitacion.idRol],
+        );
 
-      const membresia = creadas[0];
+        idMembresia = creadas[0].id;
+      }
 
       await manager.query(
         `
@@ -230,7 +271,7 @@ export class TypeOrmAccesoProyectoRepository implements AccesoProyectoRepository
         datos: {
           idInvitacion,
           idProyecto: invitacion.idProyecto,
-          idMembresia: membresia.id,
+          idMembresia,
           idRol: invitacion.idRol,
         },
       };
