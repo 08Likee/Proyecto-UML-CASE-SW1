@@ -9,10 +9,15 @@ import { ModeloUmlRepository } from './domain/repositories/modelo-uml.repository
 import { ModeloUmlEntity } from './infrastructure/persistence/entities/modelo-uml.entity';
 import { TypeOrmModeloUmlRepository } from './infrastructure/persistence/repositories/typeorm-modelo-uml.repository';
 import { ModelosUmlController } from './presentation/controllers/modelos-uml.controller';
+import { ObtenerAccesoColaboracionUseCase } from './application/use-cases/cu06-editar-diagrama-colaborativamente/obtener-acceso-colaboracion.use-case';
+import { GuardarSnapshotColaboracionUseCase } from './application/use-cases/cu06-editar-diagrama-colaborativamente/guardar-snapshot-colaboracion.use-case';
+import { ObtenerSnapshotColaboracionUseCase } from './application/use-cases/cu06-editar-diagrama-colaborativamente/obtener-snapshot-colaboracion.use-case';
+import { ColaboracionUmlController } from './presentation/controllers/colaboracion-uml.controller';
+import { CollaborationInternalGuard } from './presentation/guards/collaboration-internal.guard';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ModeloUmlEntity]), Pa01Module],
-  controllers: [ModelosUmlController],
+  controllers: [ModelosUmlController, ColaboracionUmlController],
   providers: [
     {
       provide: ModeloUmlRepository,
@@ -22,6 +27,10 @@ import { ModelosUmlController } from './presentation/controllers/modelos-uml.con
     ListarModelosUmlUseCase,
     ObtenerModeloUmlUseCase,
     GuardarModeloUmlUseCase,
+    ObtenerAccesoColaboracionUseCase,
+    ObtenerSnapshotColaboracionUseCase,
+    GuardarSnapshotColaboracionUseCase,
+    CollaborationInternalGuard,
   ],
 })
 export class Pa02Module {}

@@ -32,6 +32,9 @@ describe('Aplicacion (e2e)', () => {
 
   const testProjectNamePattern = 'SW1-E2E-%';
 
+  const collaborationServiceSecret =
+    'sw1-e2e-collaboration-secret-1234567890';
+
   async function limpiarUsuariosDePrueba(): Promise<void> {
     if (!dataSource?.isInitialized) {
       return;
@@ -112,6 +115,7 @@ describe('Aplicacion (e2e)', () => {
   }
 
   beforeAll(async () => {
+    process.env.COLLABORATION_SERVICE_SECRET = collaborationServiceSecret;
     passwordRecoveryNotifier = new PasswordRecoveryNotifierFake();
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -2675,4 +2679,252 @@ describe('Aplicacion (e2e)', () => {
     expect(persistido[0].version).toBe(2);
     expect(persistido[0].contenido).toEqual(contenido);
   });
+
+  it('/api/colaboracion prepara acceso y snapshot persistente para CU-06', async () => {
+    const contrasena = 'ClaveSegura123!';
+    const correoHost = 'sw1-e2e-cu06-host@example.test';
+    const correoEspectador = 'sw1-e2e-cu06-espectador@example.test';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Host',
+        apellido: 'CU06',
+        correo: correoHost,
+        contrasena,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Espectador',
+        apellido: 'CU06',
+        correo: correoEspectador,
+        contrasena,
+      })
+      .expect(201);
+
+    const loginHost = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ correo: correoHost, contrasena })
+      .expect(200);
+
+    const loginEspectador = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ correo: correoEspectador, contrasena })
+      .expect(200);
+
+    const tokenHost = loginHost.body.accessToken as string;
+    const tokenEspectador = loginEspectador.body.accessToken as string;
+
+    const proyecto = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'SW1-E2E-CU06-Colaboracion',
+        descripcion: 'Proyecto E2E para colaboración',
+      })
+      .expect(201);
+
+    const idProyecto = proyecto.body.id as string;
+
+    const modelo = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/modelos-uml`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({ nombre: 'Modelo colaborativo' })
+      .expect(201);
+
+    const idModelo = modelo.body.id as string;
+
+    const accesoHost = await request(app.getHttpServer())
+      .get(
+        `/api/proyectos/${idProyecto}/modelos-uml/${idModelo}/colaboracion/acceso`,
+      )
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    expect(accesoHost.body).toMatchObject({
+      idProyecto,
+      idModelo,
+      puedeConsultar: true,
+      puedeEditar: true,
+      version: 1,
+    });
+
+    const roles = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/roles`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    const rolEspectador = roles.body.find(
+      (rol: { nombre: string; esPredeterminado: boolean }) =>
+        rol.nombre === 'Espectador' && rol.esPredeterminado,
+    );
+
+    expect(rolEspectador).toBeDefined();
+
+    const invitacion = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/invitaciones`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        correo: correoEspectador,
+        idRol: rolEspectador.id,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/api/invitaciones/${invitacion.body.id}/aceptar`)
+      .set('Authorization', `Bearer ${tokenEspectador}`)
+      .expect(201);
+
+    const accesoEspectador = await request(app.getHttpServer())
+      .get(
+        `/api/proyectos/${idProyecto}/modelos-uml/${idModelo}/colaboracion/acceso`,
+      )
+      .set('Authorization', `Bearer ${tokenEspectador}`)
+      .expect(200);
+
+    expect(accesoEspectador.body).toMatchObject({
+      idProyecto,
+      idModelo,
+      puedeConsultar: true,
+      puedeEditar: false,
+      version: 1,
+    });
+
+    await request(app.getHttpServer())
+      .get(
+        `/api/colaboracion/interna/proyectos/${idProyecto}/modelos-uml/${idModelo}/snapshot`,
+      )
+      .set('x-collaboration-secret', 'secreto-incorrecto')
+      .expect(401);
+
+    const snapshotInicial = await request(app.getHttpServer())
+      .get(
+        `/api/colaboracion/interna/proyectos/${idProyecto}/modelos-uml/${idModelo}/snapshot`,
+      )
+      .set('x-collaboration-secret', collaborationServiceSecret)
+      .expect(200);
+
+    expect(snapshotInicial.body).toMatchObject({
+      idProyecto,
+      idModelo,
+      version: 1,
+      contenido: {
+        versionEsquema: 1,
+        clases: [],
+        relaciones: [],
+        configuracion: {},
+      },
+      estadoYjsBase64: null,
+    });
+
+    const idClase = randomUUID();
+    const contenidoColaborativo = {
+      versionEsquema: 1,
+      clases: [
+        {
+          id: idClase,
+          nombre: 'ClaseColaborativa',
+          posicion: { x: 120, y: 80 },
+          atributos: [],
+          operaciones: [],
+          persistencia: {
+            persistente: false,
+            idAtributoIdentificador: null,
+          },
+        },
+      ],
+      relaciones: [],
+      configuracion: {},
+    };
+    const estadoYjsBase64 = Buffer.from('estado-yjs-cu06').toString('base64');
+
+    const snapshotGuardado = await request(app.getHttpServer())
+      .put(
+        `/api/colaboracion/interna/proyectos/${idProyecto}/modelos-uml/${idModelo}/snapshot`,
+      )
+      .set('x-collaboration-secret', collaborationServiceSecret)
+      .send({
+        contenido: contenidoColaborativo,
+        estadoYjsBase64,
+      })
+      .expect(200);
+
+    expect(snapshotGuardado.body).toMatchObject({
+      idProyecto,
+      idModelo,
+      version: 2,
+      contenido: contenidoColaborativo,
+      estadoYjsBase64,
+    });
+
+    const snapshotRecuperado = await request(app.getHttpServer())
+      .get(
+        `/api/colaboracion/interna/proyectos/${idProyecto}/modelos-uml/${idModelo}/snapshot`,
+      )
+      .set('x-collaboration-secret', collaborationServiceSecret)
+      .expect(200);
+
+    expect(snapshotRecuperado.body).toMatchObject({
+      version: 2,
+      contenido: contenidoColaborativo,
+      estadoYjsBase64,
+    });
+
+    const modeloPublico = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/modelos-uml/${idModelo}`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    expect(modeloPublico.body).toMatchObject({
+      version: 2,
+      contenido: contenidoColaborativo,
+    });
+    expect(modeloPublico.body.contenido.configuracion).not.toHaveProperty(
+      '__colaboracion',
+    );
+
+    const persistido = await dataSource.query<
+      Array<{
+        version: number;
+        contenido: {
+          configuracion: Record<string, unknown>;
+        };
+      }>
+    >(
+      `
+        SELECT version, contenido
+        FROM modelo_uml
+        WHERE id = $1
+      `,
+      [idModelo],
+    );
+
+    expect(persistido[0].version).toBe(2);
+    expect(persistido[0].contenido.configuracion).toHaveProperty(
+      '__colaboracion',
+    );
+
+    await request(app.getHttpServer())
+      .put(
+        `/api/colaboracion/interna/proyectos/${idProyecto}/modelos-uml/${idModelo}/snapshot`,
+      )
+      .set('x-collaboration-secret', collaborationServiceSecret)
+      .send({
+        contenido: {
+          ...contenidoColaborativo,
+          clases: [
+            {
+              ...contenidoColaborativo.clases[0],
+              id: 'no-es-uuid',
+            },
+          ],
+        },
+        estadoYjsBase64,
+      })
+      .expect(400);
+  });
+
 });

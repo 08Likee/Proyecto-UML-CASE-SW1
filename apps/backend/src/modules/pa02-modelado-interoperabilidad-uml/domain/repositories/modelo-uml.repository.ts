@@ -18,6 +18,11 @@ export interface ActualizarModeloUmlDatos {
   versionEsperada: number;
 }
 
+export interface SnapshotColaborativoModeloUml {
+  modelo: ModeloUml;
+  estadoYjsBase64: string | null;
+}
+
 export type ActualizarModeloUmlResultado =
   | {
       tipo: 'ACTUALIZADO';
@@ -47,4 +52,16 @@ export abstract class ModeloUmlRepository {
     idProyecto: string,
     datos: ActualizarModeloUmlDatos,
   ): Promise<ActualizarModeloUmlResultado>;
+
+  abstract buscarSnapshotColaborativoPorIdYProyecto(
+    idModelo: string,
+    idProyecto: string,
+  ): Promise<SnapshotColaborativoModeloUml | null>;
+
+  abstract actualizarSnapshotColaborativo(
+    idModelo: string,
+    idProyecto: string,
+    contenido: ModeloUmlContenido,
+    estadoYjsBase64: string,
+  ): Promise<ModeloUml | null>;
 }

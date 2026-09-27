@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import {
   type ModeloUml,
+  type ModeloUmlContenido,
   type ModeloUmlEstado,
   type ModeloUmlResumen,
 } from '../../../domain/models/modelo-uml';
@@ -10,7 +11,12 @@ import {
   type ActualizarModeloUmlResultado,
   type CrearModeloUmlDatos,
   ModeloUmlRepository,
+  type SnapshotColaborativoModeloUml,
 } from '../../../domain/repositories/modelo-uml.repository';
+import {
+  agregarEstadoColaborativo,
+  separarEstadoColaborativo,
+} from '../../../domain/services/estado-colaborativo-modelo-uml';
 import { ModeloUmlEntity } from '../entities/modelo-uml.entity';
 
 @Injectable()
@@ -135,12 +141,81 @@ export class TypeOrmModeloUmlRepository implements ModeloUmlRepository {
     };
   }
 
+  async buscarSnapshotColaborativoPorIdYProyecto(
+    idModelo: string,
+    idProyecto: string,
+  ): Promise<SnapshotColaborativoModeloUml | null> {
+    const entity = await this.dataSource
+      .getRepository(ModeloUmlEntity)
+      .findOne({
+        where: {
+          id: idModelo,
+          idProyecto,
+          estado: 'ACTIVO',
+        },
+      });
+
+    if (!entity) {
+      return null;
+    }
+
+    const { estadoYjsBase64 } = separarEstadoColaborativo(entity.contenido);
+
+    return {
+      modelo: this.toDomain(entity),
+      estadoYjsBase64,
+    };
+  }
+
+  async actualizarSnapshotColaborativo(
+    idModelo: string,
+    idProyecto: string,
+    contenido: ModeloUmlContenido,
+    estadoYjsBase64: string,
+  ): Promise<ModeloUml | null> {
+    const repository = this.dataSource.getRepository(ModeloUmlEntity);
+    const contenidoPersistido = agregarEstadoColaborativo(
+      contenido,
+      estadoYjsBase64,
+    );
+
+    const resultado = await repository
+      .createQueryBuilder()
+      .update(ModeloUmlEntity)
+      .set({
+        contenido: () => 'CAST(:contenido AS jsonb)',
+        version: () => 'version + 1',
+        fechaActualizacion: new Date(),
+      })
+      .where('id = :idModelo', { idModelo })
+      .andWhere('id_proyecto = :idProyecto', { idProyecto })
+      .andWhere("estado = 'ACTIVO'")
+      .setParameter('contenido', JSON.stringify(contenidoPersistido))
+      .execute();
+
+    if (resultado.affected !== 1) {
+      return null;
+    }
+
+    const actualizado = await repository.findOne({
+      where: {
+        id: idModelo,
+        idProyecto,
+        estado: 'ACTIVO',
+      },
+    });
+
+    return actualizado ? this.toDomain(actualizado) : null;
+  }
+
   private toDomain(entity: ModeloUmlEntity): ModeloUml {
+    const { contenido } = separarEstadoColaborativo(entity.contenido);
+
     return {
       id: entity.id,
       nombre: entity.nombre,
       descripcion: entity.descripcion,
-      contenido: entity.contenido,
+      contenido,
       version: entity.version,
       estado: entity.estado as ModeloUmlEstado,
       fechaCreacion: entity.fechaCreacion,

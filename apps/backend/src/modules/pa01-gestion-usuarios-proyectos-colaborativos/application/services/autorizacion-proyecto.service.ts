@@ -6,6 +6,20 @@ import { AutorizacionProyectoRepository } from '../../domain/repositories/autori
 export class AutorizacionProyectoService {
   constructor(private readonly repository: AutorizacionProyectoRepository) {}
 
+  async tienePermiso(
+    idUsuario: string,
+    idProyecto: string,
+    recurso: string,
+    accion: string,
+  ): Promise<boolean> {
+    return this.repository.tienePermiso(
+      idUsuario,
+      idProyecto,
+      recurso,
+      accion,
+    );
+  }
+
   async exigirPermiso(
     idUsuario: string,
     idProyecto: string,
