@@ -129,6 +129,18 @@ function generarEntidad(paquete: string, entidad: EntidadBackend): string {
 
   for (const relacion of entidad.relaciones) {
     imports.add(`jakarta.persistence.${anotacionRelacion(relacion)}`);
+    if (relacion.tipo === 'MANY_TO_ONE' || relacion.tipo === 'ONE_TO_ONE') {
+      imports.add('jakarta.persistence.JoinColumn');
+    }
+    if (relacion.tipo === 'ONE_TO_MANY') {
+      imports.add('jakarta.persistence.FetchType');
+      imports.add('jakarta.persistence.JoinColumn');
+    }
+    if (relacion.tipo === 'MANY_TO_MANY') {
+      imports.add('jakarta.persistence.FetchType');
+      imports.add('jakarta.persistence.JoinColumn');
+      imports.add('jakarta.persistence.JoinTable');
+    }
     if (esColeccion(relacion)) {
       imports.add('java.util.ArrayList');
       imports.add('java.util.List');
@@ -148,7 +160,9 @@ function generarEntidad(paquete: string, entidad: EntidadBackend): string {
       }
       return `${anotaciones.join('\n')}${anotaciones.length ? '\n' : ''}  private ${atributo.tipoJava} ${atributo.nombre};`;
     }),
-    ...entidad.relaciones.map((relacion) => generarCampoRelacion(relacion)),
+    ...entidad.relaciones.map((relacion) =>
+      generarCampoRelacion(entidad, relacion),
+    ),
   ].join('\n\n');
 
   const accesores = [
@@ -393,12 +407,21 @@ function anotacionRelacion(relacion: RelacionBackend): string {
   return mapa[relacion.tipo];
 }
 
-function generarCampoRelacion(relacion: RelacionBackend): string {
+function generarCampoRelacion(
+  entidad: EntidadBackend,
+  relacion: RelacionBackend,
+): string {
   const anotacion = anotacionRelacion(relacion);
-  if (esColeccion(relacion)) {
-    return `  @${anotacion}\n  private List<${relacion.entidadDestino}> ${relacion.nombreCampo} = new ArrayList<>();`;
+
+  if (relacion.tipo === 'MANY_TO_ONE' || relacion.tipo === 'ONE_TO_ONE') {
+    return `  @${anotacion}\n  @JoinColumn(name = "${snakeCase(relacion.nombreCampo)}_id")\n  private ${relacion.entidadDestino} ${relacion.nombreCampo};`;
   }
-  return `  @${anotacion}\n  private ${relacion.entidadDestino} ${relacion.nombreCampo};`;
+
+  if (relacion.tipo === 'MANY_TO_MANY') {
+    return `  @${anotacion}(fetch = FetchType.EAGER)\n  @JoinTable(\n    name = "${snakeCase(entidad.nombre)}_${snakeCase(relacion.entidadDestino)}",\n    joinColumns = @JoinColumn(name = "${snakeCase(entidad.nombre)}_id"),\n    inverseJoinColumns = @JoinColumn(name = "${snakeCase(relacion.entidadDestino)}_id")\n  )\n  private List<${relacion.entidadDestino}> ${relacion.nombreCampo} = new ArrayList<>();`;
+  }
+
+  return `  @${anotacion}(fetch = FetchType.EAGER)\n  @JoinColumn(name = "${snakeCase(entidad.nombre)}_id")\n  private List<${relacion.entidadDestino}> ${relacion.nombreCampo} = new ArrayList<>();`;
 }
 
 function esColeccion(relacion: RelacionBackend): boolean {

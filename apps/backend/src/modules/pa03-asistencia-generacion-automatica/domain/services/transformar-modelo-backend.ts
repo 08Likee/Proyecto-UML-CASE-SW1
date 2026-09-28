@@ -1,7 +1,7 @@
 import type {
   ClaseUml,
   ModeloUml,
-  MultiplicidadUml,
+  RelacionUml,
 } from '../../../pa02-modelado-interoperabilidad-uml/domain/models/modelo-uml';
 import type {
   EspecificacionBackend,
@@ -33,11 +33,12 @@ export function transformarModeloABackend(
   );
   const porId = new Map(persistentes.map((clase) => [clase.id, clase]));
 
-  const relacionesPorOrigen = new Map<string, RelacionBackend[]>();
+  const relacionesPorEntidad = new Map<string, RelacionBackend[]>();
   for (const relacion of modelo.contenido.relaciones) {
     if (relacion.tipo === 'GENERALIZACION') {
       continue;
     }
+
     const origen = porId.get(relacion.idClaseOrigen);
     const destino = porId.get(relacion.idClaseDestino);
     if (
@@ -49,16 +50,17 @@ export function transformarModeloABackend(
       continue;
     }
 
-    const lista = relacionesPorOrigen.get(origen.id) ?? [];
+    const transformada = transformarRelacion(relacion, origen, destino);
+    const lista = relacionesPorEntidad.get(transformada.propietario.id) ?? [];
     lista.push({
-      nombreCampo: nombreRelacion(destino, relacion.nombre),
-      entidadDestino: destino.nombre,
-      tipo: mapearRelacion(
-        relacion.multiplicidadOrigen,
-        relacion.multiplicidadDestino,
+      nombreCampo: nombreRelacion(
+        transformada.entidadDestino,
+        transformada.usarNombreExplicito ? relacion.nombre : null,
       ),
+      entidadDestino: transformada.entidadDestino.nombre,
+      tipo: transformada.tipo,
     });
-    relacionesPorOrigen.set(origen.id, lista);
+    relacionesPorEntidad.set(transformada.propietario.id, lista);
   }
 
   const artifactId = normalizarArtifactId(modelo.nombre);
@@ -80,24 +82,61 @@ export function transformarModeloABackend(
           tipoJava: MAPEO_TIPOS[atributo.tipo],
           identificador: atributo.id === id.id,
         })),
-        relaciones: relacionesPorOrigen.get(clase.id) ?? [],
+        relaciones: relacionesPorEntidad.get(clase.id) ?? [],
       };
     }),
     operacionesPendientes,
   };
 }
 
-function mapearRelacion(
-  multiplicidadOrigen: MultiplicidadUml,
-  multiplicidadDestino: MultiplicidadUml,
-): TipoRelacionJpa {
-  const origenMuchos = esMuchos(multiplicidadOrigen);
-  const destinoMuchos = esMuchos(multiplicidadDestino);
+interface RelacionTransformada {
+  propietario: ClaseUml;
+  entidadDestino: ClaseUml;
+  tipo: TipoRelacionJpa;
+  usarNombreExplicito: boolean;
+}
 
-  if (!origenMuchos && !destinoMuchos) return 'ONE_TO_ONE';
-  if (!origenMuchos && destinoMuchos) return 'ONE_TO_MANY';
-  if (origenMuchos && !destinoMuchos) return 'MANY_TO_ONE';
-  return 'MANY_TO_MANY';
+function transformarRelacion(
+  relacion: RelacionUml,
+  origen: ClaseUml,
+  destino: ClaseUml,
+): RelacionTransformada {
+  const origenMuchos = esMuchos(relacion.multiplicidadOrigen!);
+  const destinoMuchos = esMuchos(relacion.multiplicidadDestino!);
+
+  if (origenMuchos && !destinoMuchos) {
+    return {
+      propietario: origen,
+      entidadDestino: destino,
+      tipo: 'MANY_TO_ONE',
+      usarNombreExplicito: false,
+    };
+  }
+
+  if (!origenMuchos && destinoMuchos) {
+    return {
+      propietario: destino,
+      entidadDestino: origen,
+      tipo: 'MANY_TO_ONE',
+      usarNombreExplicito: false,
+    };
+  }
+
+  if (!origenMuchos && !destinoMuchos) {
+    return {
+      propietario: origen,
+      entidadDestino: destino,
+      tipo: 'ONE_TO_ONE',
+      usarNombreExplicito: true,
+    };
+  }
+
+  return {
+    propietario: origen,
+    entidadDestino: destino,
+    tipo: 'MANY_TO_MANY',
+    usarNombreExplicito: true,
+  };
 }
 
 function nombreRelacion(destino: ClaseUml, nombre: string | null): string {
