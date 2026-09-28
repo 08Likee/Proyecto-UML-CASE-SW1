@@ -126,3 +126,67 @@ export async function apiRequest<T>(
 
   return response.json() as Promise<T>;
 }
+
+export interface ApiBlobResponse {
+  blob: Blob;
+  headers: Headers;
+  status: number;
+}
+
+export async function apiBlobRequest(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<ApiBlobResponse> {
+  const {
+    autenticada = true,
+    reintentarTrasRefresh = true,
+    headers,
+    ...requestInit
+  } = options;
+
+  const sesion = leerSesion();
+  const requestHeaders = new Headers(headers);
+
+  if (requestInit.body && !requestHeaders.has('Content-Type')) {
+    requestHeaders.set('Content-Type', 'application/json');
+  }
+
+  if (autenticada) {
+    if (!sesion) {
+      throw new Error('La sesión no está disponible');
+    }
+
+    requestHeaders.set('Authorization', `Bearer ${sesion.accessToken}`);
+  }
+
+  const response = await fetch(`${obtenerApiUrl()}${path}`, {
+    ...requestInit,
+    headers: requestHeaders,
+  });
+
+  if (
+    response.status === 401 &&
+    autenticada &&
+    reintentarTrasRefresh &&
+    sesion
+  ) {
+    const renovada = await renovarSesion(sesion);
+
+    if (renovada) {
+      return apiBlobRequest(path, {
+        ...options,
+        reintentarTrasRefresh: false,
+      });
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(await obtenerMensajeError(response));
+  }
+
+  return {
+    blob: await response.blob(),
+    headers: response.headers,
+    status: response.status,
+  };
+}
