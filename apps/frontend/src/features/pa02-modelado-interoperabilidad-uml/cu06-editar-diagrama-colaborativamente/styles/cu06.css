@@ -1,0 +1,55 @@
+.collaboration-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.collaboration-status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.collaboration-status.online {
+  color: var(--success-text, #2f855a);
+}
+
+.collaboration-status.connecting {
+  color: var(--warning-text, #b7791f);
+}
+
+.collaboration-status.offline {
+  color: var(--muted);
+}
+
+.collaboration-participants {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.collaboration-banner {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.collaboration-banner.error {
+  color: var(--danger, #c53030);
+}
+
+@media (max-width: 900px) {
+  .collaboration-status,
+  .collaboration-participants {
+    white-space: normal;
+  }
+}

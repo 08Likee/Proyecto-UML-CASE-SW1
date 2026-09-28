@@ -115,7 +115,13 @@ export const useModeladorStore = create<ModeladorState>((set) => ({
   sucio: false,
 
   cargarModelo: (modelo) =>
-    set({ modelo, seleccionado: null, sucio: false }),
+    set({
+      modelo,
+      seleccionado: modelo.contenido.clases[0]
+        ? { tipo: 'CLASE', id: modelo.contenido.clases[0].id }
+        : null,
+      sucio: false,
+    }),
 
   marcarGuardado: (modelo) => set({ modelo, sucio: false }),
 

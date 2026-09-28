@@ -12,6 +12,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { ThemeToggle } from '../../../../shared/theme/ThemeToggle';
 import { guardarModeloUml } from '../api/modelos-uml.api';
+import { useModeloColaborativo } from '../../cu06-editar-diagrama-colaborativamente/hooks/useModeloColaborativo';
 import { useModeladorStore } from '../store/modelador.store';
 import type {
   ClaseUml,
@@ -42,6 +43,20 @@ const TIPOS_RELACION: TipoRelacionUml[] = [
   'AGREGACION',
   'COMPOSICION',
 ];
+
+const TIPOS_DATOS_COMUNES: readonly string[] = [
+  'String',
+  'Int',
+  'Integer',
+  'Long',
+  'Double',
+  'Float',
+  'Decimal',
+  'Boolean',
+  'Date',
+  'DateTime',
+  'UUID',
+] as const;
 
 const SIMBOLO_VISIBILIDAD: Record<VisibilidadUml, string> = {
   PUBLICA: '+',
@@ -165,16 +180,44 @@ function EditorClase({ clase, editable }: { clase: ClaseUml; editable: boolean }
                   })
                 }
               />
-              <input
-                aria-label="Tipo del atributo"
-                value={atributo.tipo}
-                disabled={!editable}
-                onChange={(event) =>
-                  actualizarAtributo(clase.id, atributo.id, {
-                    tipo: event.target.value,
-                  })
-                }
-              />
+              <div className="type-input-with-presets">
+                <input
+                  aria-label="Tipo del atributo"
+                  placeholder="Tipo"
+                  value={atributo.tipo}
+                  disabled={!editable}
+                  onChange={(event) =>
+                    actualizarAtributo(clase.id, atributo.id, {
+                      tipo: event.target.value,
+                    })
+                  }
+                />
+                <select
+                  aria-label="Tipo común del atributo"
+                  value={atributo.tipo}
+                  disabled={!editable}
+                  onChange={(event) => {
+                    if (event.target.value) {
+                      actualizarAtributo(clase.id, atributo.id, {
+                        tipo: event.target.value,
+                      });
+                    }
+                  }}
+                >
+                  <option value="" disabled>
+                    Tipo
+                  </option>
+                  {atributo.tipo &&
+                    !TIPOS_DATOS_COMUNES.includes(atributo.tipo) && (
+                      <option value={atributo.tipo}>{atributo.tipo}</option>
+                    )}
+                  {TIPOS_DATOS_COMUNES.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {tipo}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <select
                 aria-label="Visibilidad del atributo"
                 value={atributo.visibilidad}
@@ -273,17 +316,42 @@ function EditorClase({ clase, editable }: { clase: ClaseUml; editable: boolean }
                   })
                 }
               />
-              <input
-                aria-label="Tipo de retorno"
-                placeholder="retorno (vacío = void)"
-                value={operacion.tipoRetorno ?? ''}
-                disabled={!editable}
-                onChange={(event) =>
-                  actualizarOperacion(clase.id, operacion.id, {
-                    tipoRetorno: event.target.value || null,
-                  })
-                }
-              />
+              <div className="type-input-with-presets">
+                <input
+                  aria-label="Tipo de retorno"
+                  placeholder="retorno (vacío = void)"
+                  value={operacion.tipoRetorno ?? ''}
+                  disabled={!editable}
+                  onChange={(event) =>
+                    actualizarOperacion(clase.id, operacion.id, {
+                      tipoRetorno: event.target.value || null,
+                    })
+                  }
+                />
+                <select
+                  aria-label="Tipo de retorno común"
+                  value={operacion.tipoRetorno ?? ''}
+                  disabled={!editable}
+                  onChange={(event) =>
+                    actualizarOperacion(clase.id, operacion.id, {
+                      tipoRetorno: event.target.value || null,
+                    })
+                  }
+                >
+                  <option value="">void</option>
+                  {operacion.tipoRetorno &&
+                    !TIPOS_DATOS_COMUNES.includes(operacion.tipoRetorno) && (
+                      <option value={operacion.tipoRetorno}>
+                        {operacion.tipoRetorno}
+                      </option>
+                    )}
+                  {TIPOS_DATOS_COMUNES.map((tipo) => (
+                    <option key={tipo} value={tipo}>
+                      {tipo}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <select
                 aria-label="Visibilidad de la operación"
                 value={operacion.visibilidad}
@@ -318,19 +386,50 @@ function EditorClase({ clase, editable }: { clase: ClaseUml; editable: boolean }
                       )
                     }
                   />
-                  <input
-                    aria-label="Tipo del parámetro"
-                    value={parametro.tipo}
-                    disabled={!editable}
-                    onChange={(event) =>
-                      actualizarParametro(
-                        clase.id,
-                        operacion.id,
-                        parametro.id,
-                        { tipo: event.target.value },
-                      )
-                    }
-                  />
+                  <div className="type-input-with-presets">
+                    <input
+                      aria-label="Tipo del parámetro"
+                      placeholder="Tipo"
+                      value={parametro.tipo}
+                      disabled={!editable}
+                      onChange={(event) =>
+                        actualizarParametro(
+                          clase.id,
+                          operacion.id,
+                          parametro.id,
+                          { tipo: event.target.value },
+                        )
+                      }
+                    />
+                    <select
+                      aria-label="Tipo común del parámetro"
+                      value={parametro.tipo}
+                      disabled={!editable}
+                      onChange={(event) => {
+                        if (event.target.value) {
+                          actualizarParametro(
+                            clase.id,
+                            operacion.id,
+                            parametro.id,
+                            { tipo: event.target.value },
+                          );
+                        }
+                      }}
+                    >
+                      <option value="" disabled>
+                        Tipo
+                      </option>
+                      {parametro.tipo &&
+                        !TIPOS_DATOS_COMUNES.includes(parametro.tipo) && (
+                          <option value={parametro.tipo}>{parametro.tipo}</option>
+                        )}
+                      {TIPOS_DATOS_COMUNES.map((tipo) => (
+                        <option key={tipo} value={tipo}>
+                          {tipo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {editable && (
                     <button
                       type="button"
@@ -515,6 +614,13 @@ export function ModeladorUml({
   const marcarGuardado = useModeladorStore((state) => state.marcarGuardado);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const colaboracion = useModeloColaborativo({
+    idProyecto,
+    idModelo: modelo?.id ?? '',
+    puedeEditarInicial: puedeEditar,
+  });
+  const puedeEditarEfectivo =
+    puedeEditar && colaboracion.puedeEditar && colaboracion.listo;
 
   const nodes = useMemo<Node[]>(() => {
     if (!modelo) {
@@ -525,13 +631,15 @@ export function ModeladorUml({
       id: clase.id,
       position: clase.posicion,
       data: { label: <ClaseCard clase={clase} /> },
+      selected:
+        seleccionado?.tipo === 'CLASE' && seleccionado.id === clase.id,
       style: {
         width: 290,
         padding: 0,
         borderRadius: 6,
       },
     }));
-  }, [modelo]);
+  }, [modelo, seleccionado]);
 
   const edges = useMemo<Edge[]>(() => {
     if (!modelo) {
@@ -543,6 +651,8 @@ export function ModeladorUml({
       source: relacion.idClaseOrigen,
       target: relacion.idClaseDestino,
       label: etiquetaRelacion(relacion),
+      selected:
+        seleccionado?.tipo === 'RELACION' && seleccionado.id === relacion.id,
       type: 'smoothstep',
       markerEnd:
         relacion.tipo === 'GENERALIZACION'
@@ -552,7 +662,7 @@ export function ModeladorUml({
         strokeWidth: relacion.tipo === 'COMPOSICION' ? 2.5 : 1.5,
       },
     }));
-  }, [modelo]);
+  }, [modelo, seleccionado]);
 
   if (!modelo) {
     return null;
@@ -573,7 +683,7 @@ export function ModeladorUml({
       : null;
 
   const conectar = (connection: Connection) => {
-    if (!puedeEditar || !connection.source || !connection.target) {
+    if (!puedeEditarEfectivo || !connection.source || !connection.target) {
       return;
     }
 
@@ -581,7 +691,7 @@ export function ModeladorUml({
   };
 
   const guardar = async () => {
-    if (!puedeEditar || guardando) {
+    if (!puedeEditarEfectivo || guardando) {
       return;
     }
 
@@ -589,15 +699,17 @@ export function ModeladorUml({
     setMensaje(null);
 
     try {
+      const versionVigente = await colaboracion.prepararGuardadoManual();
       const actualizado = await guardarModeloUml(idProyecto, modelo.id, {
         nombre: modelo.nombre,
         descripcion: modelo.descripcion,
         contenido: modelo.contenido,
-        version: modelo.version,
+        version: versionVigente,
       });
 
       marcarGuardado(actualizado);
-      setMensaje(`Guardado. Versión ${actualizado.version}.`);
+      colaboracion.registrarGuardadoRest();
+      setMensaje(`Metadatos guardados. Versión ${actualizado.version}.`);
     } catch (error: unknown) {
       setMensaje(
         error instanceof Error ? error.message : 'No se pudo guardar el modelo',
@@ -618,7 +730,7 @@ export function ModeladorUml({
             <input
               className="model-name-input"
               value={modelo.nombre}
-              disabled={!puedeEditar}
+              disabled={!puedeEditarEfectivo}
               onChange={(event) =>
                 actualizarMetadatos(event.target.value, modelo.descripcion)
               }
@@ -628,37 +740,84 @@ export function ModeladorUml({
         </div>
 
         <div className="toolbar-group">
+          <span
+            className={`collaboration-status ${
+              colaboracion.conexion === 'conectado'
+                ? 'online'
+                : colaboracion.conexion === 'conectando'
+                  ? 'connecting'
+                  : 'offline'
+            }`}
+          >
+            <span className="collaboration-status-dot" />
+            {colaboracion.conexion === 'conectado'
+              ? colaboracion.sincronizado
+                ? 'Sincronizado'
+                : 'Conectado'
+              : colaboracion.conexion === 'conectando'
+                ? 'Conectando…'
+                : colaboracion.modoOffline
+                  ? 'Offline · copia local'
+                  : 'Sin conexión'}
+          </span>
+          <span className="collaboration-participants">
+            {colaboracion.participantes} participante
+            {colaboracion.participantes === 1 ? '' : 's'}
+          </span>
           <ThemeToggle />
-          {!puedeEditar && <span className="readonly-chip">Solo lectura</span>}
-          {sucio && <span className="dirty-chip">Cambios sin guardar</span>}
-          {puedeEditar && (
+          {!puedeEditarEfectivo && colaboracion.listo && (
+            <span className="readonly-chip">Solo lectura</span>
+          )}
+          {sucio && (
+            <span className="dirty-chip">Metadatos sin guardar</span>
+          )}
+          {puedeEditarEfectivo && (
             <button type="button" onClick={agregarClase}>
               + Clase
             </button>
           )}
-          {puedeEditar && (
+          {puedeEditarEfectivo && sucio && (
             <button
               className="primary-button"
               type="button"
               disabled={guardando || !sucio}
               onClick={() => void guardar()}
             >
-              {guardando ? 'Guardando…' : 'Guardar'}
+              {guardando ? 'Guardando…' : 'Guardar metadatos'}
             </button>
           )}
         </div>
       </header>
 
-      {mensaje && <div className="modeler-message">{mensaje}</div>}
+      <div className="modeler-content">
+        <div className="modeler-notifications">
+          {colaboracion.error && (
+            <div className="collaboration-banner error">
+              {colaboracion.error}
+            </div>
+          )}
+          {!colaboracion.listo && !colaboracion.error && (
+            <div className="collaboration-banner">
+              Preparando el documento colaborativo…
+            </div>
+          )}
+          {colaboracion.modoOffline && (
+            <div className="collaboration-banner">
+              Sin conexión al servidor colaborativo. Los cambios válidos se conservan
+              localmente y se sincronizarán al recuperar la conexión.
+            </div>
+          )}
+          {mensaje && <div className="modeler-message">{mensaje}</div>}
+        </div>
 
-      <div className="modeler-main">
+        <div className="modeler-main">
         <div className="diagram-canvas">
           <ReactFlow
             nodes={nodes}
             edges={edges}
             fitView
-            nodesDraggable={puedeEditar}
-            nodesConnectable={puedeEditar}
+            nodesDraggable={puedeEditarEfectivo}
+            nodesConnectable={puedeEditarEfectivo}
             onConnect={conectar}
             onNodeClick={(_, node) =>
               seleccionar({ tipo: 'CLASE', id: node.id })
@@ -681,8 +840,8 @@ export function ModeladorUml({
           <div className="inspector-header">
             <h2>Propiedades</h2>
             <p>
-              {puedeEditar
-                ? 'Edita el elemento seleccionado.'
+              {puedeEditarEfectivo
+                ? 'Edita el elemento seleccionado. Los cambios del diagrama se sincronizan automáticamente.'
                 : 'Consulta del modelo sin permiso de edición.'}
             </p>
           </div>
@@ -693,7 +852,7 @@ export function ModeladorUml({
               <textarea
                 rows={3}
                 value={modelo.descripcion ?? ''}
-                disabled={!puedeEditar}
+                disabled={!puedeEditarEfectivo}
                 onChange={(event) =>
                   actualizarMetadatos(
                     modelo.nombre,
@@ -705,13 +864,13 @@ export function ModeladorUml({
           </div>
 
           {claseSeleccionada && (
-            <EditorClase clase={claseSeleccionada} editable={puedeEditar} />
+            <EditorClase clase={claseSeleccionada} editable={puedeEditarEfectivo} />
           )}
 
           {relacionSeleccionada && (
             <EditorRelacion
               relacion={relacionSeleccionada}
-              editable={puedeEditar}
+              editable={puedeEditarEfectivo}
             />
           )}
 
@@ -722,6 +881,7 @@ export function ModeladorUml({
             </div>
           )}
         </aside>
+        </div>
       </div>
     </div>
   );

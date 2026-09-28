@@ -295,9 +295,19 @@ label {
 
 .modeler-shell {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   background: var(--modeler-background);
+}
+
+.modeler-content {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.modeler-notifications:empty {
+  display: none;
 }
 
 .modeler-toolbar {
@@ -414,7 +424,7 @@ label {
 
 .editor-grid-3 {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.65fr) minmax(0, 0.9fr);
   gap: 6px;
 }
 
@@ -422,6 +432,18 @@ label {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+.type-input-with-presets {
+  display: grid;
+  grid-template-columns: minmax(72px, 1fr) minmax(88px, 104px);
+  gap: 5px;
+  min-width: 0;
+}
+
+.type-input-with-presets input,
+.type-input-with-presets select {
+  min-width: 0;
 }
 
 .checkbox-label {

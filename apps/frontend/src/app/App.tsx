@@ -6,6 +6,7 @@ import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar-proyecto-colaborativo/styles/cu02.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu03-gestionar-participantes-roles/styles/cu03.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu04-acceder-proyecto-colaborativo/styles/cu04.css';
+import '../features/pa02-modelado-interoperabilidad-uml/cu06-editar-diagrama-colaborativamente/styles/cu06.css';
 import { ThemeToggle } from '../shared/theme/ThemeToggle';
 import {
   cerrarSesion,
@@ -245,7 +246,12 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const crearModelo = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!idProyecto || !nombreNuevoModelo.trim()) {
+    if (!idProyecto) {
+      return;
+    }
+
+    if (!nombreNuevoModelo.trim()) {
+      setError('Ingresa un nombre para crear el modelo UML.');
       return;
     }
 
@@ -419,7 +425,13 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                       placeholder="Nombre del nuevo modelo"
                       value={nombreNuevoModelo}
                       maxLength={150}
-                      onChange={(event) => setNombreNuevoModelo(event.target.value)}
+                      required
+                      onChange={(event) => {
+                        setNombreNuevoModelo(event.target.value);
+                        if (error === 'Ingresa un nombre para crear el modelo UML.') {
+                          setError(null);
+                        }
+                      }}
                     />
                     <button className="primary-button" disabled={creando}>
                       {creando ? 'Creando…' : '+ Nuevo modelo'}
