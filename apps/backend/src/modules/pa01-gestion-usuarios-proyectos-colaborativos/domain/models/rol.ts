@@ -15,6 +15,7 @@ export const PERMISOS_ROL_EDITOR: readonly PermisoRolPredeterminado[] = [
   { recurso: 'ROL', accion: 'CONSULTAR' },
   { recurso: 'MODELO', accion: 'CONSULTAR' },
   { recurso: 'MODELO', accion: 'EDITAR' },
+  { recurso: 'GENERACION', accion: 'GENERAR' },
 ];
 
 export const PERMISOS_ROL_ESPECTADOR: readonly PermisoRolPredeterminado[] = [

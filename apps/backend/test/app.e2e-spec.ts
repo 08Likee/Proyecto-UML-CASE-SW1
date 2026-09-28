@@ -32,8 +32,7 @@ describe('Aplicacion (e2e)', () => {
 
   const testProjectNamePattern = 'SW1-E2E-%';
 
-  const collaborationServiceSecret =
-    'sw1-e2e-collaboration-secret-1234567890';
+  const collaborationServiceSecret = 'sw1-e2e-collaboration-secret-1234567890';
 
   async function limpiarUsuariosDePrueba(): Promise<void> {
     if (!dataSource?.isInitialized) {
@@ -1528,6 +1527,11 @@ describe('Aplicacion (e2e)', () => {
     expect(permisosRoles).toEqual([
       {
         rol_nombre: 'Editor',
+        recurso: 'GENERACION',
+        accion: 'GENERAR',
+      },
+      {
+        rol_nombre: 'Editor',
         recurso: 'MODELO',
         accion: 'CONSULTAR',
       },
@@ -2927,4 +2931,188 @@ describe('Aplicacion (e2e)', () => {
       .expect(400);
   });
 
+  it('/api/proyectos/:idProyecto/modelos-uml/:idModelo/generacion valida y genera backend de CU-10', async () => {
+    const contrasena = 'ClaveSegura123!';
+    const correoHost = 'sw1-e2e-cu10-host@example.test';
+    const correoLector = 'sw1-e2e-cu10-lector@example.test';
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Host',
+        apellido: 'CU10',
+        correo: correoHost,
+        contrasena,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/registro')
+      .send({
+        nombre: 'Lector',
+        apellido: 'CU10',
+        correo: correoLector,
+        contrasena,
+      })
+      .expect(201);
+
+    const loginHost = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ correo: correoHost, contrasena })
+      .expect(200);
+    const loginLector = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ correo: correoLector, contrasena })
+      .expect(200);
+    const tokenHost = loginHost.body.accessToken as string;
+    const tokenLector = loginLector.body.accessToken as string;
+
+    const proyecto = await request(app.getHttpServer())
+      .post('/api/proyectos')
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'SW1-E2E-CU10-Generacion',
+        descripcion: 'Proyecto E2E para CU-10',
+      })
+      .expect(201);
+    const idProyecto = proyecto.body.id as string;
+
+    const creado = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/modelos-uml`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({ nombre: 'Ventas API' })
+      .expect(201);
+    const idModelo = creado.body.id as string;
+    const idCliente = randomUUID();
+    const idClientePk = randomUUID();
+
+    const contenido = {
+      versionEsquema: 1,
+      configuracion: {},
+      clases: [
+        {
+          id: idCliente,
+          nombre: 'Cliente',
+          posicion: { x: 100, y: 80 },
+          persistencia: {
+            persistente: true,
+            idAtributoIdentificador: idClientePk,
+          },
+          atributos: [
+            {
+              id: idClientePk,
+              nombre: 'id',
+              tipo: 'Long',
+              visibilidad: 'PRIVADA',
+            },
+            {
+              id: randomUUID(),
+              nombre: 'nombre',
+              tipo: 'String',
+              visibilidad: 'PRIVADA',
+            },
+          ],
+          operaciones: [
+            {
+              id: randomUUID(),
+              nombre: 'calcularDescuento',
+              visibilidad: 'PUBLICA',
+              tipoRetorno: 'Decimal',
+              parametros: [],
+            },
+          ],
+        },
+      ],
+      relaciones: [],
+    };
+
+    await request(app.getHttpServer())
+      .put(`/api/proyectos/${idProyecto}/modelos-uml/${idModelo}`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Ventas API',
+        contenido,
+        version: 1,
+      })
+      .expect(200);
+
+    const validacion = await request(app.getHttpServer())
+      .get(
+        `/api/proyectos/${idProyecto}/modelos-uml/${idModelo}/generacion/validacion`,
+      )
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+
+    expect(validacion.body).toMatchObject({
+      valido: true,
+      errores: [],
+    });
+    expect(validacion.body.operacionesPendientes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          clase: 'Cliente',
+          operacion: 'calcularDescuento',
+        }),
+      ]),
+    );
+
+    const generado = await request(app.getHttpServer())
+      .post(
+        `/api/proyectos/${idProyecto}/modelos-uml/${idModelo}/generacion/backend`,
+      )
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on('data', (chunk: Buffer) => chunks.push(chunk));
+        response.on('end', () => callback(null, Buffer.concat(chunks)));
+      })
+      .expect(201)
+      .expect('Content-Type', /application\/zip/);
+
+    expect(generado.headers['content-disposition']).toContain('ventas-api.zip');
+    expect(Buffer.isBuffer(generado.body)).toBe(true);
+    expect((generado.body as Buffer).subarray(0, 4)).toEqual(
+      Buffer.from([0x50, 0x4b, 0x03, 0x04]),
+    );
+
+    const permisos = await request(app.getHttpServer())
+      .get(`/api/proyectos/${idProyecto}/permisos`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .expect(200);
+    const permisoConsultarModelo = permisos.body.find(
+      (permiso: { id: string; recurso: string; accion: string }) =>
+        permiso.recurso === 'MODELO' && permiso.accion === 'CONSULTAR',
+    );
+    const permisoGenerar = permisos.body.find(
+      (permiso: { id: string; recurso: string; accion: string }) =>
+        permiso.recurso === 'GENERACION' && permiso.accion === 'GENERAR',
+    );
+    expect(permisoGenerar).toBeDefined();
+
+    const rolLector = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/roles`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({
+        nombre: 'Lector CU10',
+        permisosIds: [permisoConsultarModelo.id],
+      })
+      .expect(201);
+    const invitacion = await request(app.getHttpServer())
+      .post(`/api/proyectos/${idProyecto}/invitaciones`)
+      .set('Authorization', `Bearer ${tokenHost}`)
+      .send({ correo: correoLector, idRol: rolLector.body.id })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/invitaciones/${invitacion.body.id}/aceptar`)
+      .set('Authorization', `Bearer ${tokenLector}`)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .get(
+        `/api/proyectos/${idProyecto}/modelos-uml/${idModelo}/generacion/validacion`,
+      )
+      .set('Authorization', `Bearer ${tokenLector}`)
+      .expect(403);
+  });
 });

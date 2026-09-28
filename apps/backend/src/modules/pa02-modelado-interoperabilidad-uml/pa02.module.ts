@@ -32,5 +32,6 @@ import { CollaborationInternalGuard } from './presentation/guards/collaboration-
     GuardarSnapshotColaboracionUseCase,
     CollaborationInternalGuard,
   ],
+  exports: [ModeloUmlRepository],
 })
 export class Pa02Module {}
