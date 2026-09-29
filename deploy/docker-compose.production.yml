@@ -1,0 +1,134 @@
+name: proyecto-uml-case-sw1
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - case_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - case_internal
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: backend
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      CLIENT_URL: ${PUBLIC_URL}
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_TTL_SECONDS: ${JWT_ACCESS_TTL_SECONDS:-900}
+      JWT_REFRESH_TTL_SECONDS: ${JWT_REFRESH_TTL_SECONDS:-604800}
+
+      JWT_PASSWORD_RECOVERY_SECRET: ${JWT_PASSWORD_RECOVERY_SECRET}
+      JWT_PASSWORD_RECOVERY_TTL_SECONDS: ${JWT_PASSWORD_RECOVERY_TTL_SECONDS:-900}
+
+      PASSWORD_RECOVERY_NOTIFIER: ${PASSWORD_RECOVERY_NOTIFIER:-console}
+
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+
+      COLLABORATION_SERVICE_SECRET: ${COLLABORATION_SERVICE_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - case_internal
+
+  collaboration:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: collaboration
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      COLLABORATION_PORT: 1234
+      CASE_API_URL: http://backend:3000/api
+      COLLABORATION_SERVICE_SECRET: ${COLLABORATION_SERVICE_SECRET}
+    depends_on:
+      backend:
+        condition: service_healthy
+    expose:
+      - "1234"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:1234/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - case_internal
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_COLLABORATION_URL: ${VITE_COLLABORATION_URL}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+      collaboration:
+        condition: service_healthy
+    ports:
+      - "80:80"
+    networks:
+      - case_internal
+
+volumes:
+  case_postgres_data:
+
+networks:
+  case_internal:
+    driver: bridge
