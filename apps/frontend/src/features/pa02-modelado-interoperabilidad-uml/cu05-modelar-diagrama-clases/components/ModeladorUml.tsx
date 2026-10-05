@@ -1,12 +1,17 @@
 import { useMemo, useState } from 'react';
 import {
   Background,
+  BaseEdge,
   Controls,
+  EdgeLabelRenderer,
   MarkerType,
   MiniMap,
+  Position,
   ReactFlow,
+  getSmoothStepPath,
   type Connection,
   type Edge,
+  type EdgeProps,
   type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -43,6 +48,13 @@ const TIPOS_RELACION: TipoRelacionUml[] = [
   'AGREGACION',
   'COMPOSICION',
 ];
+
+const ETIQUETA_TIPO_RELACION: Record<TipoRelacionUml, string> = {
+  ASOCIACION: 'Asociación',
+  GENERALIZACION: 'Generalización',
+  AGREGACION: 'Agregación',
+  COMPOSICION: 'Composición',
+};
 
 const TIPOS_DATOS_COMUNES: readonly string[] = [
   'String',
@@ -106,16 +118,124 @@ function ClaseCard({ clase }: { clase: ClaseUml }) {
   );
 }
 
-function etiquetaRelacion(relacion: RelacionUml): string {
-  const tipo = relacion.tipo.toLowerCase();
-  const nombre = relacion.nombre ? ` · ${relacion.nombre}` : '';
+interface RelacionEdgeData extends Record<string, unknown> {
+  tipo: TipoRelacionUml;
+  nombre: string | null;
+  multiplicidadOrigen: MultiplicidadUml | null;
+  multiplicidadDestino: MultiplicidadUml | null;
+}
 
-  if (relacion.tipo === 'GENERALIZACION') {
-    return `«${tipo}»${nombre}`;
+function posicionEtiquetaExtremo(
+  x: number,
+  y: number,
+  posicion: Position,
+): { x: number; y: number } {
+  const desplazamientoVertical = 18;
+  const desplazamientoHorizontal = 22;
+
+  switch (posicion) {
+    case Position.Top:
+      return { x, y: y - desplazamientoVertical };
+    case Position.Bottom:
+      return { x, y: y + desplazamientoVertical };
+    case Position.Left:
+      return { x: x - desplazamientoHorizontal, y };
+    case Position.Right:
+      return { x: x + desplazamientoHorizontal, y };
+    default:
+      return { x, y };
+  }
+}
+
+function etiquetaCentralRelacion(data: RelacionEdgeData): string | null {
+  const nombre = data.nombre?.trim() || null;
+
+  if (data.tipo === 'ASOCIACION') {
+    return nombre;
   }
 
-  return `${relacion.multiplicidadOrigen ?? ''} «${tipo}»${nombre} ${relacion.multiplicidadDestino ?? ''}`;
+  return nombre
+    ? `${ETIQUETA_TIPO_RELACION[data.tipo]} · ${nombre}`
+    : ETIQUETA_TIPO_RELACION[data.tipo];
 }
+
+function RelacionUmlEdge({
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  selected,
+  data,
+}: EdgeProps) {
+  const [path, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+  });
+  const relacion = data as RelacionEdgeData | undefined;
+  const posicionOrigen = posicionEtiquetaExtremo(
+    sourceX,
+    sourceY,
+    sourcePosition,
+  );
+  const posicionDestino = posicionEtiquetaExtremo(
+    targetX,
+    targetY,
+    targetPosition,
+  );
+  const etiquetaCentral = relacion ? etiquetaCentralRelacion(relacion) : null;
+  const mostrarMultiplicidades = relacion?.tipo !== 'GENERALIZACION';
+  const claseSeleccionada = selected ? ' selected' : '';
+
+  return (
+    <>
+      <BaseEdge path={path} markerEnd={markerEnd} style={style} />
+      <EdgeLabelRenderer>
+        {mostrarMultiplicidades && relacion?.multiplicidadOrigen && (
+          <div
+            className={`uml-edge-end-label${claseSeleccionada}`}
+            style={{
+              transform: `translate(-50%, -50%) translate(${posicionOrigen.x}px, ${posicionOrigen.y}px)`,
+            }}
+          >
+            {relacion.multiplicidadOrigen}
+          </div>
+        )}
+        {mostrarMultiplicidades && relacion?.multiplicidadDestino && (
+          <div
+            className={`uml-edge-end-label${claseSeleccionada}`}
+            style={{
+              transform: `translate(-50%, -50%) translate(${posicionDestino.x}px, ${posicionDestino.y}px)`,
+            }}
+          >
+            {relacion.multiplicidadDestino}
+          </div>
+        )}
+        {etiquetaCentral && (
+          <div
+            className={`uml-edge-center-label${claseSeleccionada}`}
+            style={{
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+          >
+            {etiquetaCentral}
+          </div>
+        )}
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+
+const EDGE_TYPES = {
+  umlRelacion: RelacionUmlEdge,
+};
 
 function EditorClase({ clase, editable }: { clase: ClaseUml; editable: boolean }) {
   const actualizarClase = useModeladorStore((state) => state.actualizarClase);
@@ -485,9 +605,13 @@ function EditorClase({ clase, editable }: { clase: ClaseUml; editable: boolean }
 
 function EditorRelacion({
   relacion,
+  nombreClaseOrigen,
+  nombreClaseDestino,
   editable,
 }: {
   relacion: RelacionUml;
+  nombreClaseOrigen: string;
+  nombreClaseDestino: string;
   editable: boolean;
 }) {
   const cambiarTipoRelacion = useModeladorStore(
@@ -517,7 +641,7 @@ function EditorRelacion({
         >
           {TIPOS_RELACION.map((tipo) => (
             <option key={tipo} value={tipo}>
-              {tipo}
+              {ETIQUETA_TIPO_RELACION[tipo]}
             </option>
           ))}
         </select>
@@ -536,10 +660,34 @@ function EditorRelacion({
         />
       </label>
 
+      <div className="relation-endpoint-summary" aria-label="Extremos de la relación">
+        <div className="relation-endpoint-card">
+          <span className="relation-endpoint-role">Origen</span>
+          <strong>{nombreClaseOrigen}</strong>
+          {relacion.tipo !== 'GENERALIZACION' && (
+            <span className="relation-endpoint-multiplicity">
+              {relacion.multiplicidadOrigen ?? '1'}
+            </span>
+          )}
+        </div>
+        <span className="relation-endpoint-separator" aria-hidden="true">
+          —
+        </span>
+        <div className="relation-endpoint-card">
+          <span className="relation-endpoint-role">Destino</span>
+          <strong>{nombreClaseDestino}</strong>
+          {relacion.tipo !== 'GENERALIZACION' && (
+            <span className="relation-endpoint-multiplicity">
+              {relacion.multiplicidadDestino ?? '1'}
+            </span>
+          )}
+        </div>
+      </div>
+
       {relacion.tipo !== 'GENERALIZACION' && (
-        <div className="editor-grid-2">
+        <div className="relation-multiplicity-grid">
           <label>
-            Multiplicidad origen
+            Multiplicidad en <strong>{nombreClaseOrigen}</strong>
             <select
               value={relacion.multiplicidadOrigen ?? '1'}
               disabled={!editable}
@@ -557,7 +705,7 @@ function EditorRelacion({
             </select>
           </label>
           <label>
-            Multiplicidad destino
+            Multiplicidad en <strong>{nombreClaseDestino}</strong>
             <select
               value={relacion.multiplicidadDestino ?? '1'}
               disabled={!editable}
@@ -574,6 +722,9 @@ function EditorRelacion({
               ))}
             </select>
           </label>
+          <p className="relation-multiplicity-help">
+            Cada multiplicidad se muestra junto al extremo de su clase en el diagrama.
+          </p>
         </div>
       )}
 
@@ -650,10 +801,15 @@ export function ModeladorUml({
       id: relacion.id,
       source: relacion.idClaseOrigen,
       target: relacion.idClaseDestino,
-      label: etiquetaRelacion(relacion),
       selected:
         seleccionado?.tipo === 'RELACION' && seleccionado.id === relacion.id,
-      type: 'smoothstep',
+      type: 'umlRelacion',
+      data: {
+        tipo: relacion.tipo,
+        nombre: relacion.nombre,
+        multiplicidadOrigen: relacion.multiplicidadOrigen,
+        multiplicidadDestino: relacion.multiplicidadDestino,
+      } satisfies RelacionEdgeData,
       markerEnd:
         relacion.tipo === 'GENERALIZACION'
           ? { type: MarkerType.ArrowClosed }
@@ -681,6 +837,17 @@ export function ModeladorUml({
           (relacion) => relacion.id === seleccionado.id,
         ) ?? null
       : null;
+
+  const nombreClaseOrigen = relacionSeleccionada
+    ? modelo.contenido.clases.find(
+        (clase) => clase.id === relacionSeleccionada.idClaseOrigen,
+      )?.nombre ?? 'Clase de origen'
+    : '';
+  const nombreClaseDestino = relacionSeleccionada
+    ? modelo.contenido.clases.find(
+        (clase) => clase.id === relacionSeleccionada.idClaseDestino,
+      )?.nombre ?? 'Clase de destino'
+    : '';
 
   const conectar = (connection: Connection) => {
     if (!puedeEditarEfectivo || !connection.source || !connection.target) {
@@ -815,6 +982,7 @@ export function ModeladorUml({
           <ReactFlow
             nodes={nodes}
             edges={edges}
+            edgeTypes={EDGE_TYPES}
             fitView
             nodesDraggable={puedeEditarEfectivo}
             nodesConnectable={puedeEditarEfectivo}
@@ -870,6 +1038,8 @@ export function ModeladorUml({
           {relacionSeleccionada && (
             <EditorRelacion
               relacion={relacionSeleccionada}
+              nombreClaseOrigen={nombreClaseOrigen}
+              nombreClaseDestino={nombreClaseDestino}
               editable={puedeEditarEfectivo}
             />
           )}

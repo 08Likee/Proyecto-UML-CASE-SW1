@@ -543,14 +543,107 @@ label {
   stroke-width: 2.5;
 }
 
-.react-flow__edge-textbg {
-  fill: var(--surface);
-  fill-opacity: 0.95;
+.uml-edge-end-label,
+.uml-edge-center-label {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  border: 1px solid var(--border-soft);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.16);
+  white-space: nowrap;
 }
 
-.react-flow__edge-text {
+.uml-edge-end-label {
+  min-width: 22px;
+  padding: 3px 5px;
+  border-radius: 999px;
   font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+}
+
+.uml-edge-center-label {
+  padding: 3px 6px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 9px;
   font-weight: 650;
+  line-height: 1.15;
+}
+
+.uml-edge-end-label.selected,
+.uml-edge-center-label.selected {
+  border-color: var(--primary);
+  color: var(--primary-text);
+}
+
+.relation-endpoint-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.relation-endpoint-card {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.relation-endpoint-card strong {
+  overflow-wrap: anywhere;
+}
+
+.relation-endpoint-role {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.relation-endpoint-multiplicity {
+  width: fit-content;
+  min-width: 26px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-text);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.relation-endpoint-separator {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.relation-multiplicity-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.relation-multiplicity-grid label {
+  min-width: 0;
+}
+
+.relation-multiplicity-grid label strong {
+  overflow-wrap: anywhere;
+}
+
+.relation-multiplicity-help {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 @media (max-width: 980px) {

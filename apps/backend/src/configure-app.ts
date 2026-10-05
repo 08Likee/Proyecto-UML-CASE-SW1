@@ -12,6 +12,7 @@ export function configureApp(app: INestApplication): void {
   app.enableCors({
     origin: clientUrl,
     credentials: true,
+    exposedHeaders: ['Content-Disposition'],
   });
 
   app.useGlobalPipes(
