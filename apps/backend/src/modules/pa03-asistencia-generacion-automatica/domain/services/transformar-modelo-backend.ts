@@ -52,13 +52,21 @@ export function transformarModeloABackend(
 
     const transformada = transformarRelacion(relacion, origen, destino);
     const lista = relacionesPorEntidad.get(transformada.propietario.id) ?? [];
+    const idDestino = transformada.entidadDestino.atributos.find(
+      (atributo) =>
+        atributo.id ===
+        transformada.entidadDestino.persistencia.idAtributoIdentificador,
+    )!;
     lista.push({
       nombreCampo: nombreRelacion(
         transformada.entidadDestino,
         transformada.usarNombreExplicito ? relacion.nombre : null,
       ),
       entidadDestino: transformada.entidadDestino.nombre,
+      idNombreDestino: idDestino.nombre,
+      idTipoJavaDestino: MAPEO_TIPOS[idDestino.tipo],
       tipo: transformada.tipo,
+      opcional: transformada.opcional,
     });
     relacionesPorEntidad.set(transformada.propietario.id, lista);
   }
@@ -94,6 +102,7 @@ interface RelacionTransformada {
   entidadDestino: ClaseUml;
   tipo: TipoRelacionJpa;
   usarNombreExplicito: boolean;
+  opcional: boolean;
 }
 
 function transformarRelacion(
@@ -110,6 +119,7 @@ function transformarRelacion(
       entidadDestino: destino,
       tipo: 'MANY_TO_ONE',
       usarNombreExplicito: false,
+      opcional: relacion.multiplicidadDestino !== '1',
     };
   }
 
@@ -119,6 +129,7 @@ function transformarRelacion(
       entidadDestino: origen,
       tipo: 'MANY_TO_ONE',
       usarNombreExplicito: false,
+      opcional: relacion.multiplicidadOrigen !== '1',
     };
   }
 
@@ -128,6 +139,7 @@ function transformarRelacion(
       entidadDestino: destino,
       tipo: 'ONE_TO_ONE',
       usarNombreExplicito: true,
+      opcional: relacion.multiplicidadDestino !== '1',
     };
   }
 
@@ -136,6 +148,7 @@ function transformarRelacion(
     entidadDestino: destino,
     tipo: 'MANY_TO_MANY',
     usarNombreExplicito: true,
+    opcional: true,
   };
 }
 

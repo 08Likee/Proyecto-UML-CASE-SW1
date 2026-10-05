@@ -46,7 +46,10 @@ export type TipoRelacionJpa =
 export interface RelacionBackend {
   nombreCampo: string;
   entidadDestino: string;
+  idNombreDestino: string;
+  idTipoJavaDestino: string;
   tipo: TipoRelacionJpa;
+  opcional: boolean;
 }
 
 export interface EspecificacionBackend {

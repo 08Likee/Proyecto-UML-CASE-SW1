@@ -7,5 +7,6 @@ describe('ZipNativoService', () => {
     ]);
     expect(zip.subarray(0, 4)).toEqual(Buffer.from([0x50, 0x4b, 0x03, 0x04]));
     expect(zip.includes(Buffer.from('hola.txt'))).toBe(true);
+    expect(zip.readUInt16LE(12)).toBe(0x0021);
   });
 });

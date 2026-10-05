@@ -89,7 +89,10 @@ describe('transformarModeloABackend', () => {
       {
         nombreCampo: 'cliente',
         entidadDestino: 'Cliente',
+        idNombreDestino: 'id',
+        idTipoJavaDestino: 'Long',
         tipo: 'MANY_TO_ONE',
+        opcional: false,
       },
     ]);
   });
@@ -108,7 +111,10 @@ describe('transformarModeloABackend', () => {
       {
         nombreCampo: 'cliente',
         entidadDestino: 'Cliente',
+        idNombreDestino: 'id',
+        idTipoJavaDestino: 'Long',
         tipo: 'MANY_TO_ONE',
+        opcional: false,
       },
     ]);
   });

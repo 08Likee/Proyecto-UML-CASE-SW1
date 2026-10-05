@@ -91,4 +91,94 @@ describe('validarModeloParaGeneracion', () => {
     expect(resultado.valido).toBe(true);
     expect(resultado.operacionesPendientes).toHaveLength(1);
   });
+  it('rechaza una FK manual que el generador debe derivar de la relación', () => {
+    const modelo = modeloBase();
+    const cliente = modelo.contenido.clases[0];
+    const idPedido = randomUUID();
+    const idPedidoPk = randomUUID();
+    modelo.contenido.clases.push({
+      id: idPedido,
+      nombre: 'Pedido',
+      posicion: { x: 0, y: 0 },
+      atributos: [
+        {
+          id: idPedidoPk,
+          nombre: 'id',
+          tipo: 'Long',
+          visibilidad: 'PRIVADA',
+        },
+        {
+          id: randomUUID(),
+          nombre: 'clienteId',
+          tipo: 'Long',
+          visibilidad: 'PRIVADA',
+        },
+      ],
+      operaciones: [],
+      persistencia: {
+        persistente: true,
+        idAtributoIdentificador: idPedidoPk,
+      },
+    });
+    modelo.contenido.relaciones.push({
+      id: randomUUID(),
+      tipo: 'ASOCIACION',
+      idClaseOrigen: cliente.id,
+      idClaseDestino: idPedido,
+      nombre: null,
+      multiplicidadOrigen: '1',
+      multiplicidadDestino: '0..*',
+    });
+
+    const resultado = validarModeloParaGeneracion(modelo);
+
+    expect(resultado.valido).toBe(false);
+    expect(resultado.errores).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ codigo: 'RELACION_COLISION_DTO' }),
+      ]),
+    );
+  });
+  it('advierte cuando una relación muchos a muchos requiere CRUD independiente', () => {
+    const modelo = modeloBase();
+    const cliente = modelo.contenido.clases[0];
+    const idProducto = randomUUID();
+    const idProductoPk = randomUUID();
+    modelo.contenido.clases.push({
+      id: idProducto,
+      nombre: 'Producto',
+      posicion: { x: 0, y: 0 },
+      atributos: [
+        {
+          id: idProductoPk,
+          nombre: 'id',
+          tipo: 'Long',
+          visibilidad: 'PRIVADA',
+        },
+      ],
+      operaciones: [],
+      persistencia: {
+        persistente: true,
+        idAtributoIdentificador: idProductoPk,
+      },
+    });
+    modelo.contenido.relaciones.push({
+      id: randomUUID(),
+      tipo: 'ASOCIACION',
+      idClaseOrigen: cliente.id,
+      idClaseDestino: idProducto,
+      nombre: 'productos',
+      multiplicidadOrigen: '0..*',
+      multiplicidadDestino: '0..*',
+    });
+
+    const resultado = validarModeloParaGeneracion(modelo);
+
+    expect(resultado.valido).toBe(true);
+    expect(resultado.advertencias).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ codigo: 'MANY_TO_MANY_TABLA_UNION' }),
+      ]),
+    );
+  });
 });

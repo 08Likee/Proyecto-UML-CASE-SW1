@@ -3,6 +3,8 @@ import { deflateRawSync } from 'node:zlib';
 import { ArchivoZipService } from '../../application/ports/archivo-zip.service';
 import type { ArchivoGenerado } from '../../domain/models/generacion-backend';
 
+const DOS_DATE_1980_01_01 = 0x0021;
+
 interface EntradaZip {
   nombre: Buffer;
   datosOriginales: Buffer;
@@ -55,7 +57,7 @@ function cabeceraLocal(entrada: EntradaZip): Buffer {
   o = u16(buffer, o, 0x0800);
   o = u16(buffer, o, 8);
   o = u16(buffer, o, 0);
-  o = u16(buffer, o, 0);
+  o = u16(buffer, o, DOS_DATE_1980_01_01);
   o = u32(buffer, o, entrada.crc32);
   o = u32(buffer, o, entrada.datosComprimidos.length);
   o = u32(buffer, o, entrada.datosOriginales.length);
@@ -74,7 +76,7 @@ function cabeceraCentral(entrada: EntradaZip): Buffer {
   o = u16(buffer, o, 0x0800);
   o = u16(buffer, o, 8);
   o = u16(buffer, o, 0);
-  o = u16(buffer, o, 0);
+  o = u16(buffer, o, DOS_DATE_1980_01_01);
   o = u32(buffer, o, entrada.crc32);
   o = u32(buffer, o, entrada.datosComprimidos.length);
   o = u32(buffer, o, entrada.datosOriginales.length);

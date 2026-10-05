@@ -72,6 +72,7 @@ export function validarModeloParaGeneracion(
   for (const relacion of modelo.contenido.relaciones) {
     validarRelacion(relacion, porId, errores, advertencias);
   }
+  validarCamposRelacionesGeneradas(modelo.contenido.relaciones, porId, errores);
 
   return {
     valido: errores.length === 0,
@@ -297,8 +298,8 @@ function validarRelacion(
   }
 
   if (
-    esMuchos(relacion.multiplicidadOrigen) &&
-    relacion.multiplicidadOrigen === '1..*'
+    relacion.multiplicidadOrigen === '1..*' ||
+    relacion.multiplicidadDestino === '1..*'
   ) {
     advertencias.push(
       advertencia(
@@ -308,6 +309,99 @@ function validarRelacion(
       ),
     );
   }
+
+  if (
+    esMuchos(relacion.multiplicidadOrigen) &&
+    esMuchos(relacion.multiplicidadDestino)
+  ) {
+    advertencias.push(
+      advertencia(
+        'MANY_TO_MANY_TABLA_UNION',
+        `${origen.nombre}-${destino.nombre}`,
+        'La relación muchos a muchos se materializará como tabla de unión administrada por JPA. Si necesita atributos o CRUD independiente para esa tabla, modele una clase asociativa persistente',
+      ),
+    );
+  }
+}
+
+function validarCamposRelacionesGeneradas(
+  relaciones: RelacionUml[],
+  porId: Map<string, ClaseUml>,
+  errores: ProblemaValidacionGeneracion[],
+): void {
+  const camposPorClase = new Map<string, Set<string>>();
+
+  for (const relacion of relaciones) {
+    if (
+      relacion.tipo === 'GENERALIZACION' ||
+      !relacion.multiplicidadOrigen ||
+      !relacion.multiplicidadDestino
+    ) {
+      continue;
+    }
+
+    const origen = porId.get(relacion.idClaseOrigen);
+    const destino = porId.get(relacion.idClaseDestino);
+    if (
+      !origen?.persistencia.persistente ||
+      !destino?.persistencia.persistente
+    ) {
+      continue;
+    }
+
+    const origenMuchos = esMuchos(relacion.multiplicidadOrigen);
+    const destinoMuchos = esMuchos(relacion.multiplicidadDestino);
+    const propietario = !origenMuchos && destinoMuchos ? destino : origen;
+    const entidadDestino = !origenMuchos && destinoMuchos ? origen : destino;
+    const usarNombreExplicito =
+      origenMuchos === destinoMuchos &&
+      relacion.nombre &&
+      IDENTIFICADOR_JAVA.test(relacion.nombre);
+    const nombreCampo = usarNombreExplicito
+      ? relacion.nombre!
+      : minusculaInicial(entidadDestino.nombre);
+    const esColeccion = origenMuchos && destinoMuchos;
+    const nombreCampoDto = `${nombreCampo}${esColeccion ? 'Ids' : 'Id'}`;
+    const atributos = new Set(
+      propietario.atributos.map((atributo) => atributo.nombre),
+    );
+
+    if (atributos.has(nombreCampo)) {
+      errores.push(
+        problema(
+          'RELACION_COLISION_ATRIBUTO',
+          `${propietario.nombre}.${nombreCampo}`,
+          `La relación generaría el campo "${nombreCampo}", que ya existe como atributo en "${propietario.nombre}"`,
+        ),
+      );
+    }
+    if (atributos.has(nombreCampoDto)) {
+      errores.push(
+        problema(
+          'RELACION_COLISION_DTO',
+          `${propietario.nombre}.${nombreCampoDto}`,
+          `No agregue manualmente "${nombreCampoDto}": el generador lo deriva de la relación UML`,
+        ),
+      );
+    }
+
+    const usados = camposPorClase.get(propietario.id) ?? new Set<string>();
+    if (usados.has(nombreCampo)) {
+      errores.push(
+        problema(
+          'RELACION_CAMPO_DUPLICADO',
+          `${propietario.nombre}.${nombreCampo}`,
+          `Más de una relación generaría el campo "${nombreCampo}" en "${propietario.nombre}"; asigne nombres de relación distintos`,
+        ),
+      );
+    }
+    usados.add(nombreCampo);
+    camposPorClase.set(propietario.id, usados);
+  }
+}
+
+function minusculaInicial(valor: string): string {
+  return valor.charAt(0).toLowerCase() + valor.slice(1);
 }
 
 function firmaOperacion(operacion: OperacionUml): string {
