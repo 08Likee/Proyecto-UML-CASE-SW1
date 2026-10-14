@@ -17,6 +17,9 @@ import { CollaborationInternalGuard } from './presentation/guards/collaboration-
 import { ValidarExportacionXmiUseCase } from './application/use-cases/cu08-exportar-diagrama-enterprise-architect/validar-exportacion-xmi.use-case';
 import { ExportarModeloXmiUseCase } from './application/use-cases/cu08-exportar-diagrama-enterprise-architect/exportar-modelo-xmi.use-case';
 import { ExportacionXmiController } from './presentation/controllers/exportacion-xmi.controller';
+import { ValidarImportacionXmiUseCase } from './application/use-cases/cu07-importar-diagrama-enterprise-architect/validar-importacion-xmi.use-case';
+import { ImportarModeloXmiUseCase } from './application/use-cases/cu07-importar-diagrama-enterprise-architect/importar-modelo-xmi.use-case';
+import { ImportacionXmiController } from './presentation/controllers/importacion-xmi.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ModeloUmlEntity]), Pa01Module],
@@ -24,6 +27,7 @@ import { ExportacionXmiController } from './presentation/controllers/exportacion
     ModelosUmlController,
     ColaboracionUmlController,
     ExportacionXmiController,
+    ImportacionXmiController,
   ],
   providers: [
     {
@@ -40,6 +44,8 @@ import { ExportacionXmiController } from './presentation/controllers/exportacion
     CollaborationInternalGuard,
     ValidarExportacionXmiUseCase,
     ExportarModeloXmiUseCase,
+    ValidarImportacionXmiUseCase,
+    ImportarModeloXmiUseCase,
   ],
   exports: [ModeloUmlRepository],
 })

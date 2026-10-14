@@ -1,0 +1,29 @@
+.import-xmi-panel { display: grid; gap: 1rem; }
+.import-xmi-header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.import-xmi-header h2 { margin: .2rem 0 .4rem; }
+.import-xmi-file-card, .import-xmi-confirm-card, .import-xmi-validation-card, .import-xmi-status {
+  border: 1px solid var(--border); border-radius: 14px; padding: 1rem; background: var(--surface);
+}
+.import-xmi-file-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .8rem 1rem; align-items: end; }
+.import-xmi-file-card label, .import-xmi-confirm-card label { display: grid; gap: .45rem; }
+.import-xmi-file-meta { display: flex; flex-direction: column; gap: .2rem; color: var(--muted); }
+.import-xmi-status { display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+.import-xmi-status.valid { border-color: color-mix(in srgb, #16a34a 55%, var(--border)); }
+.import-xmi-status.invalid { border-color: color-mix(in srgb, #dc2626 55%, var(--border)); }
+.import-xmi-counts { display: flex; flex-wrap: wrap; gap: .6rem; }
+.import-xmi-counts span { border: 1px solid var(--border); border-radius: 999px; padding: .35rem .65rem; }
+.import-xmi-validation-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.import-xmi-card-heading { display: flex; justify-content: space-between; align-items: center; }
+.import-xmi-card-heading h3 { margin: 0; }
+.import-xmi-problem { margin-top: .7rem; border-left: 3px solid #d97706; padding-left: .75rem; }
+.import-xmi-problem.error { border-left-color: #dc2626; }
+.import-xmi-problem p { margin: .3rem 0; }
+.import-xmi-problem code { font-size: .75rem; }
+.import-xmi-confirm-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: end; }
+.import-xmi-footnote { color: var(--muted); font-size: .9rem; }
+@media (max-width: 800px) {
+  .import-xmi-header, .import-xmi-status { flex-direction: column; }
+  .import-xmi-file-card, .import-xmi-confirm-card, .import-xmi-validation-grid { grid-template-columns: 1fr; }
+}
+.model-heading-actions { display: flex; align-items: flex-end; justify-content: flex-end; flex-wrap: wrap; gap: .6rem; }
+@media (max-width: 980px) { .model-heading-actions { width: 100%; justify-content: flex-start; } }

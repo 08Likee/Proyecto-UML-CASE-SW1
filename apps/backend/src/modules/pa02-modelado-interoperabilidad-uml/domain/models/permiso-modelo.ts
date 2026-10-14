@@ -11,4 +11,8 @@ export const PERMISOS_MODELO = {
     recurso: 'MODELO',
     accion: 'EXPORTAR',
   },
+  IMPORTAR: {
+    recurso: 'MODELO',
+    accion: 'IMPORTAR',
+  },
 } as const;

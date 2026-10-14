@@ -83,7 +83,11 @@ export async function apiRequest<T>(
   const sesion = leerSesion();
   const requestHeaders = new Headers(headers);
 
-  if (requestInit.body && !requestHeaders.has('Content-Type')) {
+  if (
+    requestInit.body &&
+    !(requestInit.body instanceof FormData) &&
+    !requestHeaders.has('Content-Type')
+  ) {
     requestHeaders.set('Content-Type', 'application/json');
   }
 
@@ -147,7 +151,11 @@ export async function apiBlobRequest(
   const sesion = leerSesion();
   const requestHeaders = new Headers(headers);
 
-  if (requestInit.body && !requestHeaders.has('Content-Type')) {
+  if (
+    requestInit.body &&
+    !(requestInit.body instanceof FormData) &&
+    !requestHeaders.has('Content-Type')
+  ) {
     requestHeaders.set('Content-Type', 'application/json');
   }
 

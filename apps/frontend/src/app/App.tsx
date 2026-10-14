@@ -7,6 +7,7 @@ import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu03-gestionar-participantes-roles/styles/cu03.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu04-acceder-proyecto-colaborativo/styles/cu04.css';
 import '../features/pa02-modelado-interoperabilidad-uml/cu06-editar-diagrama-colaborativamente/styles/cu06.css';
+import '../features/pa02-modelado-interoperabilidad-uml/cu07-importar-diagrama-enterprise-architect/styles/cu07.css';
 import '../features/pa02-modelado-interoperabilidad-uml/cu08-exportar-diagrama-enterprise-architect/styles/cu08.css';
 import '../features/pa03-asistencia-generacion-automatica/cu10-generar-backend/styles/cu10.css';
 import { ThemeToggle } from '../shared/theme/ThemeToggle';
@@ -44,6 +45,7 @@ import { useModeladorStore } from '../features/pa02-modelado-interoperabilidad-u
 import type { ModeloUmlResumen } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/types/modelo-uml.types';
 import { GeneracionBackendPanel } from '../features/pa03-asistencia-generacion-automatica/cu10-generar-backend/components/GeneracionBackendPanel';
 import { ExportacionXmiPanel } from '../features/pa02-modelado-interoperabilidad-uml/cu08-exportar-diagrama-enterprise-architect/components/ExportacionXmiPanel';
+import { ImportacionXmiPanel } from '../features/pa02-modelado-interoperabilidad-uml/cu07-importar-diagrama-enterprise-architect/components/ImportacionXmiPanel';
 import {
   crearProyecto as crearProyectoApi,
   listarProyectos,
@@ -75,7 +77,7 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const [modeloGeneracion, setModeloGeneracion] = useState<ModeloUmlResumen | null>(null);
   const [modeloExportacion, setModeloExportacion] = useState<ModeloUmlResumen | null>(null);
   const [modoProyecto, setModoProyecto] = useState<
-    'detalle' | 'crear' | 'editar' | 'administrar' | 'generar' | 'exportar'
+    'detalle' | 'crear' | 'editar' | 'administrar' | 'generar' | 'importar' | 'exportar'
   >('detalle');
   const [guardandoProyecto, setGuardandoProyecto] = useState(false);
   const [mensajeProyecto, setMensajeProyecto] = useState<string | null>(null);
@@ -151,6 +153,17 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
         (permiso) =>
           permiso.recurso === 'GENERACION' &&
           permiso.accion === 'GENERAR' &&
+          permiso.permitido,
+      ) ?? false,
+    [acceso],
+  );
+
+  const puedeImportarXmi = useMemo(
+    () =>
+      acceso?.permisos.some(
+        (permiso) =>
+          permiso.recurso === 'MODELO' &&
+          permiso.accion === 'IMPORTAR' &&
           permiso.permitido,
       ) ?? false,
     [acceso],
@@ -441,6 +454,26 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
               />
             )}
 
+          {modoProyecto === 'importar' &&
+            proyectoSeleccionado &&
+            idProyecto && (
+              <ImportacionXmiPanel
+                idProyecto={idProyecto}
+                onVolver={() => {
+                  setModoProyecto('detalle');
+                  setError(null);
+                }}
+                onImportado={(modelo) => {
+                  setModelos((actuales) => [
+                    modelo,
+                    ...actuales.filter((item) => item.id !== modelo.id),
+                  ]);
+                  setModoProyecto('detalle');
+                  cargarModelo(modelo);
+                }}
+              />
+            )}
+
           {modoProyecto === 'exportar' &&
             proyectoSeleccionado &&
             modeloExportacion &&
@@ -493,8 +526,21 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                   )}
                 </div>
 
-                {puedeEditar && idProyecto && (
-                  <form className="new-model-form" onSubmit={(event) => void crearModelo(event)}>
+                <div className="model-heading-actions">
+                  {puedeImportarXmi && idProyecto && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModoProyecto('importar');
+                        setMensajeProyecto(null);
+                        setError(null);
+                      }}
+                    >
+                      Importar XMI
+                    </button>
+                  )}
+                  {puedeEditar && idProyecto && (
+                    <form className="new-model-form" onSubmit={(event) => void crearModelo(event)}>
                     <input
                       placeholder="Nombre del nuevo modelo"
                       value={nombreNuevoModelo}
@@ -510,8 +556,9 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                     <button className="primary-button" disabled={creando}>
                       {creando ? 'Creando…' : '+ Nuevo modelo'}
                     </button>
-                  </form>
-                )}
+                    </form>
+                  )}
+                </div>
               </div>
 
               <div className="model-grid">
