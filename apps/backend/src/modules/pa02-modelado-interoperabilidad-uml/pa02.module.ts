@@ -14,10 +14,17 @@ import { GuardarSnapshotColaboracionUseCase } from './application/use-cases/cu06
 import { ObtenerSnapshotColaboracionUseCase } from './application/use-cases/cu06-editar-diagrama-colaborativamente/obtener-snapshot-colaboracion.use-case';
 import { ColaboracionUmlController } from './presentation/controllers/colaboracion-uml.controller';
 import { CollaborationInternalGuard } from './presentation/guards/collaboration-internal.guard';
+import { ValidarExportacionXmiUseCase } from './application/use-cases/cu08-exportar-diagrama-enterprise-architect/validar-exportacion-xmi.use-case';
+import { ExportarModeloXmiUseCase } from './application/use-cases/cu08-exportar-diagrama-enterprise-architect/exportar-modelo-xmi.use-case';
+import { ExportacionXmiController } from './presentation/controllers/exportacion-xmi.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ModeloUmlEntity]), Pa01Module],
-  controllers: [ModelosUmlController, ColaboracionUmlController],
+  controllers: [
+    ModelosUmlController,
+    ColaboracionUmlController,
+    ExportacionXmiController,
+  ],
   providers: [
     {
       provide: ModeloUmlRepository,
@@ -31,6 +38,8 @@ import { CollaborationInternalGuard } from './presentation/guards/collaboration-
     ObtenerSnapshotColaboracionUseCase,
     GuardarSnapshotColaboracionUseCase,
     CollaborationInternalGuard,
+    ValidarExportacionXmiUseCase,
+    ExportarModeloXmiUseCase,
   ],
   exports: [ModeloUmlRepository],
 })

@@ -1,0 +1,233 @@
+.export-xmi-panel {
+  display: grid;
+  gap: 20px;
+}
+
+.export-xmi-header,
+.export-xmi-toolbar,
+.export-xmi-card-heading,
+.export-xmi-correction-callout,
+.export-xmi-format-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.export-xmi-header {
+  align-items: flex-start;
+}
+
+.export-xmi-header h2 {
+  margin: 4px 0 8px;
+}
+
+.export-xmi-header p,
+.export-xmi-problem p,
+.export-xmi-correction-callout p,
+.export-xmi-validation-card > p,
+.export-xmi-footnote {
+  margin: 0;
+}
+
+.export-xmi-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.export-xmi-model-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.export-xmi-model-summary > div {
+  display: grid;
+  gap: 4px;
+}
+
+.export-xmi-model-summary strong {
+  font-size: 18px;
+}
+
+.export-xmi-model-summary > div > span:last-child {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.export-xmi-summary-label,
+.export-xmi-format-card > div:first-child > span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.export-xmi-toolbar {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.export-xmi-status {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.export-xmi-status.valid {
+  background: var(--success-background);
+  color: var(--success-text);
+}
+
+.export-xmi-status.invalid {
+  background: var(--danger-background);
+  color: var(--danger);
+}
+
+.export-xmi-format-card {
+  padding: 14px 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.export-xmi-format-card > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.export-xmi-counts {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.export-xmi-counts span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.export-xmi-validation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.export-xmi-validation-card {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.export-xmi-card-heading {
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.export-xmi-card-heading h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.export-xmi-card-heading > span {
+  display: inline-flex;
+  min-width: 28px;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.export-xmi-problem-list {
+  display: grid;
+  gap: 10px;
+}
+
+.export-xmi-problem {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: 9px;
+  background: var(--surface-soft);
+}
+
+.export-xmi-problem-error {
+  border-color: var(--danger-border);
+  background: var(--danger-background);
+}
+
+.export-xmi-problem code {
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.export-xmi-correction-callout {
+  padding: 16px 18px;
+  border: 1px solid var(--danger-border);
+  border-radius: 12px;
+  background: var(--danger-background);
+}
+
+.export-xmi-correction-callout p {
+  margin-top: 4px;
+  color: var(--text-secondary);
+}
+
+.export-xmi-footnote {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .export-xmi-header,
+  .export-xmi-toolbar,
+  .export-xmi-model-summary,
+  .export-xmi-format-card,
+  .export-xmi-correction-callout {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .export-xmi-validation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .export-xmi-actions button {
+    flex: 1;
+  }
+
+  .export-xmi-counts {
+    justify-content: flex-start;
+  }
+}

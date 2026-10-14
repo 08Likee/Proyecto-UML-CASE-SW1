@@ -7,6 +7,7 @@ import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu02-gestionar
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu03-gestionar-participantes-roles/styles/cu03.css';
 import '../features/pa01-gestion-usuarios-proyectos-colaborativos/cu04-acceder-proyecto-colaborativo/styles/cu04.css';
 import '../features/pa02-modelado-interoperabilidad-uml/cu06-editar-diagrama-colaborativamente/styles/cu06.css';
+import '../features/pa02-modelado-interoperabilidad-uml/cu08-exportar-diagrama-enterprise-architect/styles/cu08.css';
 import '../features/pa03-asistencia-generacion-automatica/cu10-generar-backend/styles/cu10.css';
 import { ThemeToggle } from '../shared/theme/ThemeToggle';
 import {
@@ -42,6 +43,7 @@ import {
 import { useModeladorStore } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/store/modelador.store';
 import type { ModeloUmlResumen } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/types/modelo-uml.types';
 import { GeneracionBackendPanel } from '../features/pa03-asistencia-generacion-automatica/cu10-generar-backend/components/GeneracionBackendPanel';
+import { ExportacionXmiPanel } from '../features/pa02-modelado-interoperabilidad-uml/cu08-exportar-diagrama-enterprise-architect/components/ExportacionXmiPanel';
 import {
   crearProyecto as crearProyectoApi,
   listarProyectos,
@@ -71,8 +73,9 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const [creando, setCreando] = useState(false);
   const [nombreNuevoModelo, setNombreNuevoModelo] = useState('');
   const [modeloGeneracion, setModeloGeneracion] = useState<ModeloUmlResumen | null>(null);
+  const [modeloExportacion, setModeloExportacion] = useState<ModeloUmlResumen | null>(null);
   const [modoProyecto, setModoProyecto] = useState<
-    'detalle' | 'crear' | 'editar' | 'administrar' | 'generar'
+    'detalle' | 'crear' | 'editar' | 'administrar' | 'generar' | 'exportar'
   >('detalle');
   const [guardandoProyecto, setGuardandoProyecto] = useState(false);
   const [mensajeProyecto, setMensajeProyecto] = useState<string | null>(null);
@@ -153,6 +156,17 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
     [acceso],
   );
 
+  const puedeExportarXmi = useMemo(
+    () =>
+      acceso?.permisos.some(
+        (permiso) =>
+          permiso.recurso === 'MODELO' &&
+          permiso.accion === 'EXPORTAR' &&
+          permiso.permitido,
+      ) ?? false,
+    [acceso],
+  );
+
   const puedeAdministrarParticipantes = useMemo(
     () =>
       acceso?.permisos.some(
@@ -170,6 +184,7 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const seleccionarProyecto = (nuevoIdProyecto: string) => {
     setModoProyecto('detalle');
     setModeloGeneracion(null);
+    setModeloExportacion(null);
     setMensajeProyecto(null);
     setError(null);
 
@@ -426,6 +441,27 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
               />
             )}
 
+          {modoProyecto === 'exportar' &&
+            proyectoSeleccionado &&
+            modeloExportacion &&
+            idProyecto && (
+              <ExportacionXmiPanel
+                idProyecto={idProyecto}
+                modelo={modeloExportacion}
+                onVolver={() => {
+                  setModoProyecto('detalle');
+                  setModeloExportacion(null);
+                  setError(null);
+                }}
+                onAbrirModelo={() => {
+                  const idModelo = modeloExportacion.id;
+                  setModoProyecto('detalle');
+                  setModeloExportacion(null);
+                  void abrirModelo(idModelo);
+                }}
+              />
+            )}
+
           {modoProyecto === 'detalle' && proyectoSeleccionado && (
             <>
               <ProyectoDetalle
@@ -498,6 +534,19 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                         >
                           Abrir
                         </button>
+                        {puedeExportarXmi && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setModeloExportacion(modelo);
+                              setModoProyecto('exportar');
+                              setMensajeProyecto(null);
+                              setError(null);
+                            }}
+                          >
+                            Exportar XMI
+                          </button>
+                        )}
                         {puedeGenerarBackend && (
                           <button
                             type="button"
