@@ -1,24 +1,30 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { HocuspocusProvider } from '@hocuspocus/provider';
-import { IndexeddbPersistence } from 'y-indexeddb';
-import * as Y from 'yjs';
-import { leerSesion } from '../../../pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/storage/auth.storage';
-import { obtenerModeloUml } from '../../cu05-modelar-diagrama-clases/api/modelos-uml.api';
-import { useModeladorStore } from '../../cu05-modelar-diagrama-clases/store/modelador.store';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { HocuspocusProvider } from "@hocuspocus/provider";
+import { IndexeddbPersistence } from "y-indexeddb";
+import * as Y from "yjs";
+
+import { leerSesion } from "../../../pa01-gestion-usuarios-proyectos-colaborativos/cu01-gestionar-cuenta-acceso/storage/auth.storage";
+import { obtenerModeloUml } from "../../cu05-modelar-diagrama-clases/api/modelos-uml.api";
+import { useModeladorStore } from "../../cu05-modelar-diagrama-clases/store/modelador.store";
+
 import {
   documentoTieneContenido,
   obtenerContenidoDocumento,
   ORIGEN_ZUSTAND,
   registrarGuardadoRestEnDocumento,
   sincronizarContenidoDocumento,
-} from '../collaboration/modelo-yjs';
-import { obtenerAccesoColaboracion } from '../api/colaboracion.api';
-import { admiteModoOffline, esAccesoRevocadoHttp, esRechazoAutorizacionColaborativa } from './estado-acceso-colaboracion';
+} from "../collaboration/modelo-yjs";
+
+import { obtenerAccesoColaboracion } from "../api/colaboracion.api";
+
+import {
+  admiteModoOffline,
+  esAccesoRevocadoHttp,
+  esRechazoAutorizacionColaborativa,
+} from "./estado-acceso-colaboracion";
 
 export type EstadoConexionColaboracion =
-  | 'conectando'
-  | 'conectado'
-  | 'desconectado';
+  "conectando" | "conectado" | "desconectado";
 
 export interface ModeloColaborativoState {
   listo: boolean;
@@ -54,16 +60,16 @@ function collaborationUrl(): string {
   const value = import.meta.env.VITE_COLLABORATION_URL as string | undefined;
 
   if (!value?.trim()) {
-    throw new Error('VITE_COLLABORATION_URL no está configurada');
+    throw new Error("VITE_COLLABORATION_URL no está configurada");
   }
 
-  return value.replace(/\/$/, '');
+  return value.replace(/\/$/, "");
 }
 
 function mensajeError(error: unknown): string {
   return error instanceof Error
     ? error.message
-    : 'No se pudo iniciar la colaboración';
+    : "No se pudo iniciar la colaboración";
 }
 
 function esperar(ms: number): Promise<void> {
@@ -74,9 +80,9 @@ function esFalloTemporalDeRed(reason: string): boolean {
   const normalizado = reason.toLowerCase();
 
   return (
-    normalizado.includes('failed to fetch') ||
-    normalizado.includes('networkerror') ||
-    normalizado.includes('load failed')
+    normalizado.includes("failed to fetch") ||
+    normalizado.includes("networkerror") ||
+    normalizado.includes("load failed")
   );
 }
 
@@ -84,17 +90,19 @@ function contarParticipantes(states: readonly unknown[]): number {
   const usuarios = new Set<string>();
 
   for (const state of states) {
-    if (typeof state !== 'object' || state === null) {
+    if (typeof state !== "object" || state === null) {
       continue;
     }
 
     const usuario = (state as Record<string, unknown>).usuario;
-    if (typeof usuario !== 'object' || usuario === null) {
+
+    if (typeof usuario !== "object" || usuario === null) {
       continue;
     }
 
     const idUsuario = (usuario as Record<string, unknown>).id;
-    if (typeof idUsuario === 'string' && idUsuario.trim()) {
+
+    if (typeof idUsuario === "string" && idUsuario.trim()) {
       usuarios.add(idUsuario);
     }
   }
@@ -111,10 +119,17 @@ export function useModeloColaborativo({
   const accesoRevocadoRef = useRef(false);
   const listoRef = useRef(false);
   const refrescoVersionRef = useRef<number | null>(null);
-  const metadatosBaseRef = useRef<{ nombre: string; descripcion: string | null } | null>(null);
+
+  const metadatosBaseRef = useRef<{
+    nombre: string;
+    descripcion: string | null;
+  } | null>(null);
+
   const [listo, setListo] = useState(false);
+
   const [conexion, setConexion] =
-    useState<EstadoConexionColaboracion>('conectando');
+    useState<EstadoConexionColaboracion>("conectando");
+
   const [sincronizado, setSincronizado] = useState(false);
   const [cacheLocalLista, setCacheLocalLista] = useState(false);
   const [puedeEditar, setPuedeEditar] = useState(puedeEditarInicial);
@@ -124,17 +139,19 @@ export function useModeloColaborativo({
 
   const marcarAccesoRevocado = useCallback(() => {
     accesoRevocadoRef.current = true;
+
     setAccesoRevocado(true);
     setPuedeEditar(false);
     setSincronizado(false);
     setParticipantes(1);
-    setConexion('desconectado');
+    setConexion("desconectado");
     setError(null);
   }, []);
 
   const refrescarVersion = useCallback(async () => {
     try {
       const vigente = await obtenerModeloUml(idProyecto, idModelo);
+
       const actual = useModeladorStore.getState().modelo;
 
       if (!actual || actual.id !== idModelo) {
@@ -168,15 +185,17 @@ export function useModeloColaborativo({
 
   useEffect(() => {
     let activo = true;
+
     listoRef.current = false;
     accesoRevocadoRef.current = false;
+
     const resetEstadoTimer = window.setTimeout(() => {
       if (!activo) {
         return;
       }
 
       setListo(false);
-      setConexion('conectando');
+      setConexion("conectando");
       setSincronizado(false);
       setCacheLocalLista(false);
       setPuedeEditar(puedeEditarInicial);
@@ -184,13 +203,21 @@ export function useModeloColaborativo({
       setError(null);
       setAccesoRevocado(false);
     }, 0);
+
     const modeloInicial = useModeladorStore.getState().modelo;
-    metadatosBaseRef.current = modeloInicial && modeloInicial.id === idModelo
-      ? { nombre: modeloInicial.nombre, descripcion: modeloInicial.descripcion }
-      : null;
+
+    metadatosBaseRef.current =
+      modeloInicial && modeloInicial.id === idModelo
+        ? {
+            nombre: modeloInicial.nombre,
+            descripcion: modeloInicial.descripcion,
+          }
+        : null;
 
     const documentName = `modelo-uml:${idProyecto}:${idModelo}`;
+
     const document = new Y.Doc();
+
     const indexeddb = new IndexeddbPersistence(documentName, document);
 
     const aplicarDocumentoAlStore = () => {
@@ -219,24 +246,38 @@ export function useModeloColaborativo({
       }
 
       aplicarDocumentoAlStore();
+
       listoRef.current = true;
       setListo(true);
     };
 
     const token = async () => {
       if (accesoRevocadoRef.current) {
-        throw new Error('El acceso al modelo fue revocado. Regresá a proyectos.');
+        throw new Error(
+          "El acceso al modelo fue revocado. Regresá a proyectos.",
+        );
       }
+
       try {
         const acceso = await obtenerAccesoColaboracion(idProyecto, idModelo);
-        if (activo) setPuedeEditar(acceso.puedeEditar);
+
+        if (activo) {
+          setPuedeEditar(acceso.puedeEditar);
+        }
       } catch (error: unknown) {
-        if (activo && esAccesoRevocadoHttp(error)) marcarAccesoRevocado();
+        if (activo && esAccesoRevocadoHttp(error)) {
+          marcarAccesoRevocado();
+        }
+
         throw error;
       }
 
       const sesion = leerSesion();
-      if (!sesion) throw new Error('La sesión no está disponible');
+
+      if (!sesion) {
+        throw new Error("La sesión no está disponible");
+      }
+
       return sesion.accessToken;
     };
 
@@ -250,38 +291,54 @@ export function useModeloColaborativo({
         document,
         token,
         flushDelay: 150,
+
+        // DIAGNÓSTICO TEMPORAL:
+        // Registrar los cambios de estado del proveedor.
         onStatus: ({ status }) => {
+          console.info("[SW1][Colaboracion] onStatus:", status);
+
           if (!activo || accesoRevocadoRef.current) {
             return;
           }
 
-          if (status === 'connected') {
+          if (status === "connected") {
             conectado = true;
-            setConexion('conectado');
+            setConexion("conectado");
             setError(null);
             return;
           }
 
-          if (status === 'connecting') {
+          if (status === "connecting") {
             conectado = false;
-            setConexion('conectando');
+            setConexion("conectando");
             return;
           }
 
           conectado = false;
-          setConexion('desconectado');
+          setConexion("desconectado");
           setSincronizado(false);
           setParticipantes(1);
         },
+
+        // AJUSTE PROPUESTO:
+        // Una sincronización confirmada actualiza también
+        // el estado de conexión mostrado por React.
         onSynced: ({ state }) => {
+          console.info("[SW1][Colaboracion] onSynced:", state);
+
           if (!activo || accesoRevocadoRef.current || !state) {
             return;
           }
 
+          conectado = true;
+          setConexion("conectado");
+          setError(null);
           setSincronizado(true);
+
           marcarListoSiHayContenido();
           programarRefrescoVersion();
         },
+
         onAuthenticationFailed: ({ reason }) => {
           if (!activo || accesoRevocadoRef.current) {
             return;
@@ -291,16 +348,25 @@ export function useModeloColaborativo({
             marcarAccesoRevocado();
             return;
           }
+
           if (reason && esFalloTemporalDeRed(reason)) {
-            // Un fallo HTTP al refrescar el token no implica que el WebSocket
-            // ya se haya desconectado. onStatus es la fuente de verdad.
+            // Un fallo HTTP al refrescar el token no implica
+            // que el WebSocket ya se haya desconectado.
+            // onStatus es la fuente de verdad.
             setError(null);
             return;
           }
 
-          setError(reason || 'No se pudo autenticar la sesión colaborativa');
-          setConexion('desconectado');
+          // AJUSTE PROPUESTO:
+          // Mantener coherentes los estados ante un fallo
+          // de autenticación no temporal.
+          setError(reason || "No se pudo autenticar la sesión colaborativa");
+
+          conectado = false;
+          setConexion("desconectado");
+          setSincronizado(false);
         },
+
         onAwarenessChange: ({ states }) => {
           if (activo && !accesoRevocadoRef.current) {
             setParticipantes(contarParticipantes(states));
@@ -310,28 +376,36 @@ export function useModeloColaborativo({
     } catch (unknownError: unknown) {
       indexeddb.destroy();
       document.destroy();
+
       const errorInicializacion = mensajeError(unknownError);
+
       const errorTimer = window.setTimeout(() => {
         if (!activo) {
           return;
         }
 
         setError(errorInicializacion);
-        setConexion('desconectado');
+        setConexion("desconectado");
       }, 0);
 
       return () => {
         activo = false;
+
         window.clearTimeout(resetEstadoTimer);
         window.clearTimeout(errorTimer);
       };
     }
 
-    recursosRef.current = { document, provider, indexeddb };
+    recursosRef.current = {
+      document,
+      provider,
+      indexeddb,
+    };
 
     const sesion = leerSesion();
+
     if (sesion) {
-      provider.setAwarenessField('usuario', {
+      provider.setAwarenessField("usuario", {
         id: sesion.usuario.id,
         nombre: `${sesion.usuario.nombre} ${sesion.usuario.apellido}`.trim(),
       });
@@ -346,7 +420,7 @@ export function useModeloColaborativo({
       marcarListoSiHayContenido();
     };
 
-    indexeddb.on('synced', onIndexedDbSynced);
+    indexeddb.on("synced", onIndexedDbSynced);
 
     const onDocumentUpdate = (_update: Uint8Array, origin: unknown) => {
       if (!activo || accesoRevocadoRef.current) {
@@ -362,7 +436,7 @@ export function useModeloColaborativo({
       }
     };
 
-    document.on('update', onDocumentUpdate);
+    document.on("update", onDocumentUpdate);
 
     const unsubscribeStore = useModeladorStore.subscribe((state, previous) => {
       if (!activo || accesoRevocadoRef.current || !listoRef.current) {
@@ -388,11 +462,17 @@ export function useModeloColaborativo({
       }
 
       sincronizarContenidoDocumento(document, modelo.contenido);
+
       const base = metadatosBaseRef.current;
+
       const metadatosSucios =
         !!base &&
-        (modelo.nombre !== base.nombre || modelo.descripcion !== base.descripcion);
-      useModeladorStore.setState({ sucio: metadatosSucios });
+        (modelo.nombre !== base.nombre ||
+          modelo.descripcion !== base.descripcion);
+
+      useModeladorStore.setState({
+        sucio: metadatosSucios,
+      });
     });
 
     const permissionTimer = window.setInterval(() => {
@@ -401,36 +481,53 @@ export function useModeloColaborativo({
       }
 
       void Promise.resolve(provider.sendToken()).catch(() => {
-        // La pérdida de red no debe invalidar la copia local del modelo.
+        // La pérdida de red no debe invalidar
+        // la copia local del modelo.
       });
     }, PERMISSION_SYNC_MS);
 
     return () => {
       activo = false;
       listoRef.current = false;
+
       if (refrescoVersionRef.current !== null) {
         window.clearTimeout(refrescoVersionRef.current);
         refrescoVersionRef.current = null;
       }
+
       window.clearTimeout(resetEstadoTimer);
       window.clearInterval(permissionTimer);
+
       unsubscribeStore();
-      document.off('update', onDocumentUpdate);
-      indexeddb.off('synced', onIndexedDbSynced);
+
+      document.off("update", onDocumentUpdate);
+
+      indexeddb.off("synced", onIndexedDbSynced);
+
       provider.destroy();
       void indexeddb.destroy();
       document.destroy();
+
       recursosRef.current = null;
     };
-  }, [idModelo, idProyecto, puedeEditarInicial, programarRefrescoVersion, marcarAccesoRevocado]);
+  }, [
+    idModelo,
+    idProyecto,
+    puedeEditarInicial,
+    programarRefrescoVersion,
+    marcarAccesoRevocado,
+  ]);
 
   const prepararGuardadoManual = useCallback(async () => {
     const recursos = recursosRef.current;
 
-    if (accesoRevocadoRef.current) throw new Error('Acceso revocado: el modelo no se puede guardar.');
+    if (accesoRevocadoRef.current) {
+      throw new Error("Acceso revocado: el modelo no se puede guardar.");
+    }
 
-    if (recursos && conexion === 'conectado') {
+    if (recursos && conexion === "conectado") {
       recursos.provider.flushPendingUpdates();
+
       await esperar(VERSION_REFRESH_DELAY_MS);
     }
 
@@ -445,31 +542,60 @@ export function useModeloColaborativo({
     }
 
     const modelo = useModeladorStore.getState().modelo;
+
     if (modelo && modelo.id === idModelo) {
       metadatosBaseRef.current = {
         nombre: modelo.nombre,
         descripcion: modelo.descripcion,
       };
-      useModeladorStore.setState({ sucio: false });
+
+      useModeladorStore.setState({
+        sucio: false,
+      });
     }
 
     registrarGuardadoRestEnDocumento(recursos.document);
+
     programarRefrescoVersion();
   }, [idModelo, programarRefrescoVersion]);
 
-  const integrarAplicacionIa = useCallback((estadoYjsBase64: string, version: number) => {
-    const recursos = recursosRef.current;
-    if (accesoRevocadoRef.current || !recursos || conexion !== 'conectado' || !sincronizado || !puedeEditar) {
-      throw new Error('La colaboración debe estar sincronizada para recibir cambios UML aprobados.');
-    }
-    const update = Uint8Array.from(window.atob(estadoYjsBase64), (c) => c.charCodeAt(0));
-    Y.applyUpdate(recursos.document, update, 'cu13-aplicacion-ia');
-    const actual = useModeladorStore.getState().modelo;
-    if (actual?.id === idModelo) {
-      useModeladorStore.setState({ modelo: { ...actual, version } });
-    }
-    programarRefrescoVersion();
-  }, [conexion, sincronizado, puedeEditar, idModelo, programarRefrescoVersion]);
+  const integrarAplicacionIa = useCallback(
+    (estadoYjsBase64: string, version: number) => {
+      const recursos = recursosRef.current;
+
+      if (
+        accesoRevocadoRef.current ||
+        !recursos ||
+        conexion !== "conectado" ||
+        !sincronizado ||
+        !puedeEditar
+      ) {
+        throw new Error(
+          "La colaboración debe estar sincronizada para recibir cambios UML aprobados.",
+        );
+      }
+
+      const update = Uint8Array.from(window.atob(estadoYjsBase64), (c) =>
+        c.charCodeAt(0),
+      );
+
+      Y.applyUpdate(recursos.document, update, "cu13-aplicacion-ia");
+
+      const actual = useModeladorStore.getState().modelo;
+
+      if (actual?.id === idModelo) {
+        useModeladorStore.setState({
+          modelo: {
+            ...actual,
+            version,
+          },
+        });
+      }
+
+      programarRefrescoVersion();
+    },
+    [conexion, sincronizado, puedeEditar, idModelo, programarRefrescoVersion],
+  );
 
   return {
     listo,
