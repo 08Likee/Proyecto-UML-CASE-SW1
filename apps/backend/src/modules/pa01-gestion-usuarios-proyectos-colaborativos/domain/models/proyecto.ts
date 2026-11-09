@@ -1,4 +1,4 @@
-export type ProyectoEstado = 'ACTIVO' | 'INACTIVO' | 'ARCHIVADO';
+export type ProyectoEstado = 'ACTIVO' | 'INACTIVO' | 'ARCHIVADO' | 'ELIMINADO';
 
 export interface Proyecto {
   id: string;

@@ -15,8 +15,14 @@ import {
   type Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { AsistenteIaPanel } from '../../../pa03-asistencia-generacion-automatica/cu09-interactuar-asistente-ia/components/AsistenteIaPanel';
+import { ConversacionesIaPanel } from '../../../pa03-asistencia-generacion-automatica/cu12-conversaciones-ia/components/ConversacionesIaPanel';
 import { ThemeToggle } from '../../../../shared/theme/ThemeToggle';
-import { guardarModeloUml } from '../api/modelos-uml.api';
+import { AprendizajeAsistido } from '../../../pa03-asistencia-generacion-automatica/cu11-aprendizaje-asistido/components/AprendizajeAsistido';
+import type { EstadoAprendizaje } from '../../../pa03-asistencia-generacion-automatica/cu11-aprendizaje-asistido/domain/estado-aprendizaje';
+import { guardarModeloUml, obtenerModeloUml } from '../api/modelos-uml.api';
+import { enviarMensajeIa } from '../../../pa03-asistencia-generacion-automatica/cu12-conversaciones-ia/api/conversaciones-ia.api';
+import { prepararMensajeRegistroOrdenUml, verificarPersistenciaOrdenUml } from '../../../pa03-asistencia-generacion-automatica/cu09-interactuar-asistente-ia/services/trazabilidad-orden-uml';
 import { useModeloColaborativo } from '../../cu06-editar-diagrama-colaborativamente/hooks/useModeloColaborativo';
 import { useModeladorStore } from '../store/modelador.store';
 import type {
@@ -743,13 +749,33 @@ function EditorRelacion({
 
 export interface ModeladorUmlProps {
   idProyecto: string;
+  nombreProyecto: string;
+  idUsuario: string;
   puedeEditar: boolean;
+  puedeConsultarConversaciones: boolean;
+  puedeModificarConversaciones: boolean;
+  puedeGestionarPapelera: boolean;
+  puedeGenerarBackend: boolean;
+  puedeImportarXmi: boolean;
+  puedeExportarXmi: boolean;
+  estadoAprendizaje: EstadoAprendizaje;
+  onCambiarAprendizaje: (estado: EstadoAprendizaje) => void;
   alVolver: () => void;
 }
 
 export function ModeladorUml({
   idProyecto,
+  nombreProyecto,
+  idUsuario,
   puedeEditar,
+  puedeConsultarConversaciones,
+  puedeModificarConversaciones,
+  puedeGestionarPapelera,
+  puedeGenerarBackend,
+  puedeImportarXmi,
+  puedeExportarXmi,
+  estadoAprendizaje,
+  onCambiarAprendizaje,
   alVolver,
 }: ModeladorUmlProps) {
   const modelo = useModeladorStore((state) => state.modelo);
@@ -765,13 +791,18 @@ export function ModeladorUml({
   const marcarGuardado = useModeladorStore((state) => state.marcarGuardado);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [asistenteAbierto, setAsistenteAbierto] = useState(false);
+  const [instruccionParaAsistente, setInstruccionParaAsistente] = useState<string | null>(null);
+  const [origenOrdenUml, setOrigenOrdenUml] = useState<{ idConversacion: string; idModelo: string; nombreModelo: string; ordenOriginal: string } | null>(null);
+  const [conversacionesAbiertas, setConversacionesAbiertas] = useState(false);
+  const [ultimaConversacion, setUltimaConversacion] = useState<string | null>(null);
   const colaboracion = useModeloColaborativo({
     idProyecto,
     idModelo: modelo?.id ?? '',
     puedeEditarInicial: puedeEditar,
   });
   const puedeEditarEfectivo =
-    puedeEditar && colaboracion.puedeEditar && colaboracion.listo;
+    puedeEditar && colaboracion.puedeEditar && colaboracion.listo && !colaboracion.accesoRevocado;
 
   const nodes = useMemo<Node[]>(() => {
     if (!modelo) {
@@ -890,7 +921,7 @@ export function ModeladorUml({
     <div className="modeler-shell">
       <header className="modeler-toolbar">
         <div className="toolbar-group">
-          <button type="button" onClick={alVolver}>
+          <button type="button" data-cu11-control="volver-modelos" onClick={alVolver}>
             ← Modelos
           </button>
           <div>
@@ -909,7 +940,9 @@ export function ModeladorUml({
         <div className="toolbar-group">
           <span
             className={`collaboration-status ${
-              colaboracion.conexion === 'conectado'
+              colaboracion.accesoRevocado
+                ? 'revoked'
+                : colaboracion.conexion === 'conectado'
                 ? 'online'
                 : colaboracion.conexion === 'conectando'
                   ? 'connecting'
@@ -917,7 +950,9 @@ export function ModeladorUml({
             }`}
           >
             <span className="collaboration-status-dot" />
-            {colaboracion.conexion === 'conectado'
+            {colaboracion.accesoRevocado
+              ? 'Acceso revocado'
+              : colaboracion.conexion === 'conectado'
               ? colaboracion.sincronizado
                 ? 'Sincronizado'
                 : 'Conectado'
@@ -932,6 +967,31 @@ export function ModeladorUml({
             {colaboracion.participantes === 1 ? '' : 's'}
           </span>
           <ThemeToggle />
+          <button
+            type="button"
+            onClick={() => {
+              setInstruccionParaAsistente(null);
+              setOrigenOrdenUml(null);
+              setAsistenteAbierto((abierto) => !abierto);
+              setConversacionesAbiertas(false);
+            }}
+          >
+            {asistenteAbierto ? 'Cerrar IA' : 'Asistente IA'}
+          </button>
+          {puedeConsultarConversaciones && (
+            <button
+              type="button"
+              data-cu11-control="abrir-conversaciones"
+              aria-controls="cu12-conversaciones-diagramador"
+              aria-expanded={conversacionesAbiertas}
+              onClick={() => {
+                setConversacionesAbiertas((abiertas) => !abiertas);
+                setAsistenteAbierto(false);
+              }}
+            >
+              {conversacionesAbiertas ? 'Cerrar conversaciones' : 'Conversaciones'}
+            </button>
+          )}
           {!puedeEditarEfectivo && colaboracion.listo && (
             <span className="readonly-chip">Solo lectura</span>
           )}
@@ -939,7 +999,7 @@ export function ModeladorUml({
             <span className="dirty-chip">Metadatos sin guardar</span>
           )}
           {puedeEditarEfectivo && (
-            <button type="button" onClick={agregarClase}>
+            <button type="button" data-cu11-control="crear-clase" onClick={agregarClase}>
               + Clase
             </button>
           )}
@@ -956,6 +1016,21 @@ export function ModeladorUml({
         </div>
       </header>
 
+      {colaboracion.accesoRevocado ? (
+        <main className="modeler-access-revoked" role="alert">
+          <h2>El acceso a este modelo ya no está disponible</h2>
+          <p>
+            El servidor rechazó la autorización del proyecto o del modelo.
+            Puede haberse enviado a la papelera o haberse revocado tu membresía.
+          </p>
+          <p>
+            La copia local no permite continuar editando ni se sincronizará desde esta vista.
+            Si el Anfitrión restaura el recurso, volvé a abrirlo desde la lista de proyectos.
+          </p>
+          <button type="button" onClick={alVolver}>Volver a proyectos</button>
+        </main>
+      ) : (
+      <>
       <div className="modeler-content">
         <div className="modeler-notifications">
           {colaboracion.error && (
@@ -978,7 +1053,7 @@ export function ModeladorUml({
         </div>
 
         <div className="modeler-main">
-        <div className="diagram-canvas">
+        <div className="diagram-canvas" data-cu11-control="lienzo-uml">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1004,7 +1079,7 @@ export function ModeladorUml({
           </ReactFlow>
         </div>
 
-        <aside className="inspector">
+        <aside className="inspector" data-cu11-control="inspector">
           <div className="inspector-header">
             <h2>Propiedades</h2>
             <p>
@@ -1053,6 +1128,102 @@ export function ModeladorUml({
         </aside>
         </div>
       </div>
+
+      <AprendizajeAsistido
+        estado={estadoAprendizaje}
+        onCambiar={onCambiarAprendizaje}
+        contexto={{
+          autenticado: true,
+          proyectoSeleccionado: true,
+          modeloAbierto: true,
+          puedeEditarModelo: puedeEditarEfectivo,
+          puedeConsultarConversaciones,
+          puedeGenerarBackend,
+          puedeImportarXmi,
+          puedeExportarXmi,
+        }}
+      />
+      {asistenteAbierto && (
+        <AsistenteIaPanel
+          contenido={modelo.contenido}
+          puedeEditar={puedeEditarEfectivo}
+          instruccionInicial={instruccionParaAsistente ?? undefined}
+          versionModelo={modelo.version}
+          onRegistrarResultado={origenOrdenUml ? async (resultado) => {
+            // El panel se abrió desde esta conversación concreta, no desde otra.
+            // CU-12 comprueba proyecto, membresía y estado ACTIVA al guardar.
+            if (origenOrdenUml.idModelo !== modelo.id || !puedeEditarEfectivo ||
+              colaboracion.conexion !== 'conectado' || !colaboracion.sincronizado ||
+              useModeladorStore.getState().modelo?.id !== modelo.id) {
+              throw new Error('Modelo no sincronizado o permiso de edición no disponible.');
+            }
+            let versionConfirmada: number | undefined;
+            if (resultado.estado === 'APLICADA') {
+              if (!resultado.contenidoAplicado) throw new Error('No hay contenido UML para comprobar.');
+              const version = await verificarPersistenciaOrdenUml(
+                resultado.contenidoAplicado, resultado.versionAnterior,
+                colaboracion.prepararGuardadoManual,
+                () => obtenerModeloUml(idProyecto, modelo.id),
+              );
+              if (version === null) {
+                throw new Error('El resultado aún no coincide con el modelo persistido. No se registró como aplicado.');
+              }
+              versionConfirmada = version;
+            }
+            const contenidoRegistro = prepararMensajeRegistroOrdenUml({
+              ...resultado,
+              ordenOriginal: origenOrdenUml.ordenOriginal,
+              idModelo: modelo.id,
+              nombreModelo: origenOrdenUml.nombreModelo,
+              versionConfirmada,
+            });
+            await enviarMensajeIa(idProyecto, origenOrdenUml.idConversacion, contenidoRegistro);
+            return versionConfirmada ?? null;
+          } : undefined}
+          alCerrar={() => {
+            setAsistenteAbierto(false);
+            setOrigenOrdenUml(null);
+          }}
+        />
+      )}
+      {conversacionesAbiertas && puedeConsultarConversaciones && (
+        <aside
+          id="cu12-conversaciones-diagramador"
+          className="cu12-diagramador-drawer nowheel nopan"
+          aria-label="Conversaciones compartidas del proyecto"
+          onWheel={(evento) => evento.stopPropagation()}
+          onTouchMove={(evento) => evento.stopPropagation()}
+        >
+          <ConversacionesIaPanel
+            key={idProyecto}
+            modo="diagramador"
+            idProyecto={idProyecto}
+            nombreProyecto={nombreProyecto}
+            idUsuario={idUsuario}
+            puedeModificar={puedeModificarConversaciones}
+            puedeGestionarPapelera={puedeGestionarPapelera}
+            puedeEditarModelo={puedeEditarEfectivo}
+            puedeAplicarModelo={puedeEditarEfectivo && colaboracion.conexion === 'conectado' && colaboracion.sincronizado}
+            onAplicacionUml={colaboracion.integrarAplicacionIa}
+            onRevisarOrdenUml={(texto, idConversacion) => {
+              // Transferencia explícita. Registramos el origen de la orden;
+              // no se crea mensaje ni se ejecuta nada por abrir el asistente.
+              if (!puedeEditarEfectivo || colaboracion.conexion !== 'conectado' || !colaboracion.sincronizado) return;
+              setInstruccionParaAsistente(texto);
+              setOrigenOrdenUml({ idConversacion, idModelo: modelo.id, nombreModelo: modelo.nombre, ordenOriginal: texto });
+              setConversacionesAbiertas(false);
+              setAsistenteAbierto(true);
+            }}
+            idConversacionInicial={ultimaConversacion}
+            idModeloAbierto={modelo.id}
+            nombreModeloAbierto={modelo.nombre}
+            onSeleccionarConversacion={setUltimaConversacion}
+            onVolver={() => setConversacionesAbiertas(false)}
+          />
+        </aside>
+      )}
+      </>
+      )}
     </div>
   );
 }

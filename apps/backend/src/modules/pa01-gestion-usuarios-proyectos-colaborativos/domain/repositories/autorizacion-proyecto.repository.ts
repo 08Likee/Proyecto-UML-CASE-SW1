@@ -4,5 +4,6 @@ export abstract class AutorizacionProyectoRepository {
     idProyecto: string,
     recurso: string,
     accion: string,
+    permitirProyectoEliminado?: boolean,
   ): Promise<boolean>;
 }

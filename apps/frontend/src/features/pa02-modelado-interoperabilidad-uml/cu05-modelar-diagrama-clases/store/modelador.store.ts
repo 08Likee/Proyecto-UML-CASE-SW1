@@ -3,6 +3,7 @@ import type {
   AtributoUml,
   ClaseUml,
   ModeloUml,
+  ModeloUmlContenido,
   OperacionUml,
   ParametroUml,
   RelacionUml,
@@ -21,6 +22,10 @@ interface ModeladorState {
   cargarModelo: (modelo: ModeloUml) => void;
   marcarGuardado: (modelo: ModeloUml) => void;
   seleccionar: (seleccionado: ElementoSeleccionado) => void;
+  aplicarContenidoAsistente: (
+    contenido: ModeloUmlContenido,
+    seleccionado: ElementoSeleccionado,
+  ) => void;
   actualizarMetadatos: (nombre: string, descripcion: string | null) => void;
   agregarClase: () => void;
   moverClase: (idClase: string, x: number, y: number) => void;
@@ -126,6 +131,22 @@ export const useModeladorStore = create<ModeladorState>((set) => ({
   marcarGuardado: (modelo) => set({ modelo, sucio: false }),
 
   seleccionar: (seleccionado) => set({ seleccionado }),
+
+  aplicarContenidoAsistente: (contenido, seleccionado) =>
+    set((state) => {
+      if (!state.modelo) {
+        return {};
+      }
+
+      return {
+        modelo: {
+          ...state.modelo,
+          contenido,
+        },
+        seleccionado,
+        sucio: true,
+      };
+    }),
 
   actualizarMetadatos: (nombre, descripcion) =>
     set((state) =>

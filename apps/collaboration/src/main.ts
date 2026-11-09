@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+import * as Y from 'yjs';
 import { Server } from '@hocuspocus/server';
 import {
   CaseApiClient,
@@ -85,20 +87,41 @@ const server = new Server({
   },
 
   async onLoadDocument({ documentName }) {
-    const snapshot = await api.loadSnapshot(documentName);
-
-    if (snapshot.estadoYjsBase64) {
-      return decodeDocumentStateBase64(snapshot.estadoYjsBase64);
+    // Registrar el primer documento Yjs en PostgreSQL ANTES de admitir ediciones
+    // o aceptar propuestas: nunca fusionar raíces CRDT creadas independientemente.
+    for (let intento = 0; intento < 4; intento += 1) {
+      const snapshot = await api.loadSnapshot(documentName);
+      if (snapshot.estadoYjsBase64) return decodeDocumentStateBase64(snapshot.estadoYjsBase64);
+      const documento = crearDocumentoDesdeContenido(snapshot.contenido);
+      try {
+        await api.storeSnapshot(documentName, snapshot.contenido, encodeDocumentStateBase64(documento), snapshot.version);
+        return documento;
+      } catch (error: unknown) {
+        documento.destroy();
+        if (!(error instanceof Error) || !error.message.includes('HTTP 409') || intento === 3) throw error;
+      }
     }
-
-    return crearDocumentoDesdeContenido(snapshot.contenido);
+    throw new Error('No se pudo inicializar de forma segura el documento colaborativo.');
   },
 
   async onStoreDocument({ documentName, document }) {
-    const contenido = extraerContenidoDocumento(document);
-    const estadoYjsBase64 = encodeDocumentStateBase64(document);
-
-    await api.storeSnapshot(documentName, contenido, estadoYjsBase64);
+    // La API puede haber aplicado una propuesta UML mientras el CRDT estaba abierto.
+    // Fusionar el estado persistido ANTES de escribir impide sobrescribir esa propuesta.
+    for (let intento = 0; intento < 4; intento += 1) {
+      const snapshot = await api.loadSnapshot(documentName);
+      if (snapshot.estadoYjsBase64) {
+        Y.applyUpdate(document, decodeDocumentStateBase64(snapshot.estadoYjsBase64), 'postgresql-cu13');
+      }
+      const contenido = extraerContenidoDocumento(document);
+      if (isDeepStrictEqual(contenido, snapshot.contenido)) return;
+      try {
+        await api.storeSnapshot(documentName, contenido, encodeDocumentStateBase64(document), snapshot.version);
+        return;
+      } catch (error: unknown) {
+        // Sólo los conflictos de versión son reintentables; nunca perder una edición silenciosamente.
+        if (!(error instanceof Error) || !error.message.includes('HTTP 409') || intento === 3) throw error;
+      }
+    }
   },
 
   onRequest({ request, response }) {

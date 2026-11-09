@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Body,
+  ConflictException,
   Controller,
   ForbiddenException,
   Get,
@@ -15,6 +16,7 @@ import { ObtenerAccesoColaboracionUseCase } from '../../application/use-cases/cu
 import { GuardarSnapshotColaboracionUseCase } from '../../application/use-cases/cu06-editar-diagrama-colaborativamente/guardar-snapshot-colaboracion.use-case';
 import { ObtenerSnapshotColaboracionUseCase } from '../../application/use-cases/cu06-editar-diagrama-colaborativamente/obtener-snapshot-colaboracion.use-case';
 import { ModeloUmlInvalidoError } from '../../domain/errors/modelo-uml-invalido.error';
+import { ModeloUmlVersionConflictivaError } from '../../domain/errors/modelo-uml-version-conflictiva.error';
 import { ModeloUmlNoEncontradoError } from '../../domain/errors/modelo-uml-no-encontrado.error';
 import { OperacionProyectoNoAutorizadaError } from '../../../pa01-gestion-usuarios-proyectos-colaborativos/domain/errors/operacion-proyecto-no-autorizada.error';
 import {
@@ -82,6 +84,7 @@ export class ColaboracionUmlController {
         idModelo,
         contenido: dto.contenido,
         estadoYjsBase64: dto.estadoYjsBase64,
+        versionEsperada: dto.versionEsperada,
       });
     } catch (error: unknown) {
       this.traducirError(error);
@@ -91,6 +94,10 @@ export class ColaboracionUmlController {
   private traducirError(error: unknown): never {
     if (error instanceof OperacionProyectoNoAutorizadaError) {
       throw new ForbiddenException(error.message);
+    }
+
+    if (error instanceof ModeloUmlVersionConflictivaError) {
+      throw new ConflictException(error.message);
     }
 
     if (error instanceof ModeloUmlNoEncontradoError) {

@@ -39,16 +39,28 @@ import { ModeladorUml } from '../features/pa02-modelado-interoperabilidad-uml/cu
 import {
   crearModeloUml,
   listarModelosUml,
+  listarModelosUmlPapelera,
+  moverModeloUmlPapelera,
+  restaurarModeloUmlPapelera,
+  type ModeloUmlPapelera,
   obtenerModeloUml,
 } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/api/modelos-uml.api';
 import { useModeladorStore } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/store/modelador.store';
 import type { ModeloUmlResumen } from '../features/pa02-modelado-interoperabilidad-uml/cu05-modelar-diagrama-clases/types/modelo-uml.types';
 import { GeneracionBackendPanel } from '../features/pa03-asistencia-generacion-automatica/cu10-generar-backend/components/GeneracionBackendPanel';
+import { ConversacionesIaPanel } from '../features/pa03-asistencia-generacion-automatica/cu12-conversaciones-ia/components/ConversacionesIaPanel';
+import { AprendizajeAsistido } from '../features/pa03-asistencia-generacion-automatica/cu11-aprendizaje-asistido/components/AprendizajeAsistido';
+import { ESTADO_APRENDIZAJE_INICIAL } from '../features/pa03-asistencia-generacion-automatica/cu11-aprendizaje-asistido/domain/estado-aprendizaje';
+import type { EstadoAprendizaje } from '../features/pa03-asistencia-generacion-automatica/cu11-aprendizaje-asistido/domain/estado-aprendizaje';
 import { ExportacionXmiPanel } from '../features/pa02-modelado-interoperabilidad-uml/cu08-exportar-diagrama-enterprise-architect/components/ExportacionXmiPanel';
 import { ImportacionXmiPanel } from '../features/pa02-modelado-interoperabilidad-uml/cu07-importar-diagrama-enterprise-architect/components/ImportacionXmiPanel';
 import {
   crearProyecto as crearProyectoApi,
   listarProyectos,
+  listarProyectosPapelera,
+  moverProyectoPapelera,
+  restaurarProyectoPapelera,
+  type ElementoPapelera,
   modificarProyecto as modificarProyectoApi,
   obtenerAccesoProyecto,
   obtenerProyecto,
@@ -66,7 +78,12 @@ interface WorkspaceViewProps {
 }
 
 function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
+  const [estadoAprendizaje, setEstadoAprendizaje] = useState<EstadoAprendizaje>(ESTADO_APRENDIZAJE_INICIAL);
   const [proyectos, setProyectos] = useState<Proyecto[]>([]);
+  const [proyectosPapelera, setProyectosPapelera] = useState<ElementoPapelera[]>([]);
+  const [modelosPapelera, setModelosPapelera] = useState<ModeloUmlPapelera[]>([]);
+  const [mostrarPapeleraModelos, setMostrarPapeleraModelos] = useState(false);
+  const [operandoPapelera, setOperandoPapelera] = useState(false);
   const [idProyecto, setIdProyecto] = useState<string | null>(null);
   const [acceso, setAcceso] = useState<AccesoProyecto | null>(null);
   const [modelos, setModelos] = useState<ModeloUmlResumen[]>([]);
@@ -77,7 +94,7 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const [modeloGeneracion, setModeloGeneracion] = useState<ModeloUmlResumen | null>(null);
   const [modeloExportacion, setModeloExportacion] = useState<ModeloUmlResumen | null>(null);
   const [modoProyecto, setModoProyecto] = useState<
-    'detalle' | 'crear' | 'editar' | 'administrar' | 'generar' | 'importar' | 'exportar'
+    'detalle' | 'crear' | 'editar' | 'administrar' | 'generar' | 'importar' | 'exportar' | 'conversaciones' | 'papeleraProyectos'
   >('detalle');
   const [guardandoProyecto, setGuardandoProyecto] = useState(false);
   const [mensajeProyecto, setMensajeProyecto] = useState<string | null>(null);
@@ -85,6 +102,7 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
   const cargarModelo = useModeladorStore((state) => state.cargarModelo);
 
   useEffect(() => {
+    void listarProyectosPapelera().then(setProyectosPapelera).catch(() => setProyectosPapelera([]));
     listarProyectos()
       .then((resultado) => {
         setProyectos(resultado);
@@ -120,6 +138,12 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
         );
         setAcceso(accesoProyecto);
         setModelos(modelosProyecto);
+        if (accesoProyecto.rol.nombre === 'Anfitrión' &&
+            accesoProyecto.permisos.some(p => p.recurso === 'MODELO' && p.accion === 'EDITAR' && p.permitido)) {
+          void listarModelosUmlPapelera(idProyecto).then(setModelosPapelera).catch(() => setModelosPapelera([]));
+        } else {
+          setModelosPapelera([]);
+        }
       })
       .catch((unknownError: unknown) => setError(mensajeError(unknownError)))
       .finally(() => setCargando(false));
@@ -136,6 +160,17 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
     [acceso],
   );
 
+  const puedeConsultarProyecto = useMemo(
+    () =>
+      acceso?.permisos.some(
+        (permiso) =>
+          permiso.recurso === 'PROYECTO' &&
+          permiso.accion === 'CONSULTAR' &&
+          permiso.permitido,
+      ) ?? false,
+    [acceso],
+  );
+
   const puedeModificarProyecto = useMemo(
     () =>
       acceso?.permisos.some(
@@ -146,6 +181,10 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
       ) ?? false,
     [acceso],
   );
+
+  // La papelera es exclusiva del Anfitrión, además de exigir MODIFICAR.
+  const puedeGestionarPapelera = puedeModificarProyecto &&
+    acceso?.rol.nombre === 'Anfitrión';
 
   const puedeGenerarBackend = useMemo(
     () =>
@@ -190,6 +229,78 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
     [acceso],
   );
 
+  const puedeGestionarModelos = acceso?.rol.nombre === 'Anfitrión' && puedeEditar;
+
+  const enviarProyectoPapelera = async () => {
+    if (!idProyecto || !proyectoSeleccionado || operandoPapelera) return;
+    if (!window.confirm(`¿Enviar el proyecto «${proyectoSeleccionado.nombre}» a papelera por 30 días? Sus modelos, conversaciones y accesos quedarán temporalmente inaccesibles para todos.`)) return;
+    setOperandoPapelera(true);
+    setError(null);
+    try {
+      await moverProyectoPapelera(idProyecto);
+      const [actualizados, eliminados] = await Promise.all([listarProyectos(), listarProyectosPapelera()]);
+      setProyectos(actualizados);
+      setProyectosPapelera(eliminados);
+      setAcceso(null);
+      setModelos([]);
+      setIdProyecto(null);
+      setModeloGeneracion(null);
+      setModeloExportacion(null);
+      setModoProyecto('papeleraProyectos');
+      setMensajeProyecto('Proyecto enviado a la papelera. Puedes restaurarlo durante 30 días.');
+    } catch (e: unknown) { setError(mensajeError(e)); }
+    finally { setOperandoPapelera(false); }
+  };
+
+  const restaurarProyectoEliminado = async (id: string) => {
+    if (operandoPapelera) return;
+    setOperandoPapelera(true);
+    setError(null);
+    try {
+      await restaurarProyectoPapelera(id);
+      const [actualizados, eliminados] = await Promise.all([listarProyectos(), listarProyectosPapelera()]);
+      setProyectos(actualizados);
+      setProyectosPapelera(eliminados);
+      setMensajeProyecto('Proyecto restaurado con sus modelos, conversaciones y permisos.');
+      setAcceso(null);
+      setModelos([]);
+      setCargando(true);
+      setIdProyecto(id);
+      setModoProyecto('detalle');
+    } catch (e: unknown) { setError(mensajeError(e)); }
+    finally { setOperandoPapelera(false); }
+  };
+
+  const enviarModeloPapelera = async (idModelo: string, nombre: string) => {
+    if (!idProyecto || operandoPapelera) return;
+    if (!window.confirm(`¿Enviar el modelo «${nombre}» a la papelera durante 30 días? Sus conexiones colaborativas dejarán de ser accesibles.`)) return;
+    setOperandoPapelera(true);
+    setError(null);
+    try {
+      await moverModeloUmlPapelera(idProyecto, idModelo);
+      setModelos(actuales => actuales.filter(m => m.id !== idModelo));
+      setModelosPapelera(await listarModelosUmlPapelera(idProyecto));
+      setMensajeProyecto('Modelo enviado a la papelera.');
+    } catch (e: unknown) { setError(mensajeError(e)); }
+    finally { setOperandoPapelera(false); }
+  };
+
+  const restaurarModeloEliminado = async (idModelo: string) => {
+    if (!idProyecto || operandoPapelera) return;
+    setOperandoPapelera(true);
+    setError(null);
+    try {
+      await restaurarModeloUmlPapelera(idProyecto, idModelo);
+      const [activos, eliminados] = await Promise.all([
+        listarModelosUml(idProyecto), listarModelosUmlPapelera(idProyecto),
+      ]);
+      setModelos(activos);
+      setModelosPapelera(eliminados);
+      setMensajeProyecto('Modelo UML restaurado con su versión y relaciones intactas.');
+    } catch (e: unknown) { setError(mensajeError(e)); }
+    finally { setOperandoPapelera(false); }
+  };
+
   const proyectoSeleccionado = proyectos.find(
     (proyecto) => proyecto.id === idProyecto,
   );
@@ -200,6 +311,7 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
     setModeloExportacion(null);
     setMensajeProyecto(null);
     setError(null);
+    setMostrarPapeleraModelos(false);
 
     if (nuevoIdProyecto === idProyecto) {
       return;
@@ -321,7 +433,21 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
     return (
       <ModeladorUml
         idProyecto={idProyecto}
+        nombreProyecto={proyectoSeleccionado?.nombre ?? 'Proyecto'}
+        idUsuario={sesion.usuario.id}
         puedeEditar={puedeEditar}
+        puedeConsultarConversaciones={
+          acceso?.proyecto.id === idProyecto && puedeConsultarProyecto
+        }
+        puedeModificarConversaciones={
+          acceso?.proyecto.id === idProyecto && puedeModificarProyecto
+        }
+        puedeGestionarPapelera={acceso?.proyecto.id === idProyecto && puedeGestionarPapelera}
+        estadoAprendizaje={estadoAprendizaje}
+        onCambiarAprendizaje={setEstadoAprendizaje}
+        puedeGenerarBackend={puedeGenerarBackend}
+        puedeImportarXmi={puedeImportarXmi}
+        puedeExportarXmi={puedeExportarXmi}
         alVolver={() => {
           useModeladorStore.setState({
             modelo: null,
@@ -359,7 +485,7 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
       </header>
 
       <main className="workspace-main">
-        <aside className="project-sidebar">
+        <aside className="project-sidebar" data-cu11-control="selector-proyecto">
           <div className="project-sidebar-heading">
             <h2>Proyectos</h2>
             <button
@@ -379,6 +505,12 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
             <p className="muted">Todavía no tienes proyectos.</p>
           )}
 
+          {(proyectosPapelera.length > 0 || puedeGestionarPapelera) && (
+            <button type="button" onClick={() => {
+              setModoProyecto('papeleraProyectos');
+              setError(null);
+            }}>Papelera de proyectos ({proyectosPapelera.length})</button>
+          )}
           <div className="project-list">
             {proyectos.map((proyecto) => (
               <button
@@ -398,6 +530,23 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
           {error && <div className="alert error-alert">{error}</div>}
           {mensajeProyecto && <div className="alert success-alert">{mensajeProyecto}</div>}
           {cargando && <div className="alert">Cargando…</div>}
+
+          {modoProyecto === 'papeleraProyectos' && (
+            <section className="papelera-recursos">
+              <h2>Papelera de proyectos (30 días)</h2>
+              <p className="muted">Solo los Anfitriones autorizados ven sus proyectos eliminados. Restaurar recupera modelos, conversaciones y accesos.</p>
+              <button type="button" onClick={() => setModoProyecto('detalle')}>Volver a proyectos</button>
+              {proyectosPapelera.length === 0 && <p>La papelera está vacía.</p>}
+              {proyectosPapelera.map(p => (
+                <article className="model-card" key={p.id}>
+                  <h3>{p.nombre}</h3>
+                  <p>Restaurable hasta {new Date(p.fechaPurga).toLocaleString()}</p>
+                  <button type="button" disabled={operandoPapelera}
+                    onClick={() => void restaurarProyectoEliminado(p.id)}>Restaurar proyecto</button>
+                </article>
+              ))}
+            </section>
+          )}
 
           {modoProyecto === 'crear' && (
             <ProyectoForm
@@ -428,6 +577,25 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                 onVolver={() => {
                   setModoProyecto('detalle');
                   setMensajeProyecto(null);
+                  setError(null);
+                }}
+              />
+            )}
+
+          {modoProyecto === 'conversaciones' &&
+            proyectoSeleccionado &&
+            idProyecto &&
+            acceso?.proyecto.id === idProyecto &&
+            puedeConsultarProyecto && (
+              <ConversacionesIaPanel
+                key={idProyecto}
+                idProyecto={idProyecto}
+                nombreProyecto={proyectoSeleccionado.nombre}
+                idUsuario={sesion.usuario.id}
+                puedeModificar={puedeModificarProyecto}
+                puedeGestionarPapelera={puedeGestionarPapelera}
+                onVolver={() => {
+                  setModoProyecto('detalle');
                   setError(null);
                 }}
               />
@@ -507,12 +675,38 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                   setMensajeProyecto(null);
                   setError(null);
                 }}
+                puedeEliminar={Boolean(puedeGestionarPapelera)}
+                onEliminar={() => void enviarProyectoPapelera()}
                 onEditar={() => {
                   setModoProyecto('editar');
                   setMensajeProyecto(null);
                   setError(null);
                 }}
               />
+
+              {puedeConsultarProyecto && (
+                <div className="cu12-entry">
+                  <div>
+                    <h3>Conversaciones del proyecto</h3>
+                    <p className="muted">
+                      Consulta y comparte mensajes con los participantes autorizados.
+                      También puedes consultar a GroqCloud desde cada conversación.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    data-cu11-control="abrir-conversaciones"
+                    onClick={() => {
+                      setModoProyecto('conversaciones');
+                      setMensajeProyecto(null);
+                      setError(null);
+                    }}
+                  >
+                    Abrir conversaciones
+                  </button>
+                </div>
+              )}
 
               <div className="section-heading models-heading-block">
                 <div>
@@ -527,9 +721,15 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                 </div>
 
                 <div className="model-heading-actions">
+                  {puedeGestionarModelos && idProyecto && (
+                    <button type="button" onClick={() => setMostrarPapeleraModelos(v => !v)}>
+                      {mostrarPapeleraModelos ? 'Ocultar papelera de modelos' : `Papelera de modelos (${modelosPapelera.length})`}
+                    </button>
+                  )}
                   {puedeImportarXmi && idProyecto && (
                     <button
                       type="button"
+                      data-cu11-control="importar-xmi"
                       onClick={() => {
                         setModoProyecto('importar');
                         setMensajeProyecto(null);
@@ -561,6 +761,20 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                 </div>
               </div>
 
+              {mostrarPapeleraModelos && puedeGestionarModelos && (
+                <section className="papelera-recursos">
+                  <h3>Modelos en papelera (30 días)</h3>
+                  {modelosPapelera.length === 0 && <p>La papelera de modelos está vacía.</p>}
+                  {modelosPapelera.map(m => (
+                    <article className="model-card" key={m.id}>
+                      <h3>{m.nombre}</h3>
+                      <p>Restaurable hasta {new Date(m.fechaPurga).toLocaleString()}</p>
+                      <button type="button" disabled={operandoPapelera}
+                        onClick={() => void restaurarModeloEliminado(m.id)}>Restaurar modelo</button>
+                    </article>
+                  ))}
+                </section>
+              )}
               <div className="model-grid">
                 {modelos.map((modelo) => (
                   <article className="model-card" key={modelo.id}>
@@ -577,13 +791,21 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                       <div className="model-card-actions">
                         <button
                           type="button"
+                          data-cu11-control="abrir-modelo"
                           onClick={() => void abrirModelo(modelo.id)}
                         >
                           Abrir
                         </button>
+                        {puedeGestionarModelos && (
+                          <button type="button" disabled={operandoPapelera}
+                            onClick={() => void enviarModeloPapelera(modelo.id, modelo.nombre)}>
+                            Mover a papelera
+                          </button>
+                        )}
                         {puedeExportarXmi && (
                           <button
                             type="button"
+                            data-cu11-control="exportar-xmi"
                             onClick={() => {
                               setModeloExportacion(modelo);
                               setModoProyecto('exportar');
@@ -598,6 +820,7 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
                           <button
                             type="button"
                             className="primary-button"
+                            data-cu11-control="generar-backend"
                             onClick={() => {
                               setModeloGeneracion(modelo);
                               setModoProyecto('generar');
@@ -647,6 +870,20 @@ function WorkspaceView({ sesion, alCerrarSesion }: WorkspaceViewProps) {
           )}
         </section>
       </main>
+      <AprendizajeAsistido
+        estado={estadoAprendizaje}
+        onCambiar={setEstadoAprendizaje}
+        contexto={{
+          autenticado: true,
+          proyectoSeleccionado: Boolean(idProyecto && acceso?.proyecto.id === idProyecto),
+          modeloAbierto: false,
+          puedeEditarModelo: false,
+          puedeConsultarConversaciones: puedeConsultarProyecto,
+          puedeGenerarBackend,
+          puedeImportarXmi,
+          puedeExportarXmi,
+        }}
+      />
     </div>
   );
 }

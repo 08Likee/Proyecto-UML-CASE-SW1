@@ -61,6 +61,7 @@ export class CaseApiClient {
     documentName: string,
     contenido: unknown,
     estadoYjsBase64: string,
+    versionEsperada: number,
   ): Promise<CollaborationSnapshot> {
     const { idProyecto, idModelo } = parseDocumentName(documentName);
 
@@ -72,7 +73,7 @@ export class CaseApiClient {
           ...this.internalHeaders(),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ contenido, estadoYjsBase64 }),
+        body: JSON.stringify({ contenido, estadoYjsBase64, versionEsperada }),
       },
     );
 

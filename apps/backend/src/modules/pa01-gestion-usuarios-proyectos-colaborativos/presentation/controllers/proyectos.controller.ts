@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Post,
   Req,
   UseGuards,
@@ -24,6 +25,7 @@ import { ObtenerProyectoUseCase } from '../../application/use-cases/cu02-gestion
 import { OperacionProyectoNoAutorizadaError } from '../../domain/errors/operacion-proyecto-no-autorizada.error';
 import { ProyectoNoEncontradoError } from '../../domain/errors/proyecto-no-encontrado.error';
 import { ModificarProyectoDto } from '../dto/modificar-proyecto.dto';
+import { PapeleraRecursosService } from '../../application/services/papelera-recursos.service';
 
 @Controller('proyectos')
 @UseGuards(AccessTokenGuard)
@@ -36,6 +38,7 @@ export class ProyectosController {
     private readonly obtenerProyectoUseCase: ObtenerProyectoUseCase,
 
     private readonly modificarProyectoUseCase: ModificarProyectoUseCase,
+    private readonly papelera: PapeleraRecursosService,
   ) {}
 
   @Post()
@@ -59,6 +62,21 @@ export class ProyectosController {
     request: AuthenticatedRequest,
   ) {
     return this.listarProyectosUseCase.execute(request.usuarioId!);
+  }
+
+  @Get('papelera')
+  listarPapelera(@Req() request: AuthenticatedRequest) {
+    return this.papelera.listarProyectos(request.usuarioId!);
+  }
+
+  @Delete(':id')
+  moverAPapelera(@Param('id', new ParseUUIDPipe()) id: string, @Req() request: AuthenticatedRequest) {
+    return this.papelera.moverProyecto(request.usuarioId!, id).then(() => ({ ok: true }));
+  }
+
+  @Post(':id/restaurar')
+  restaurar(@Param('id', new ParseUUIDPipe()) id: string, @Req() request: AuthenticatedRequest) {
+    return this.papelera.restaurarProyecto(request.usuarioId!, id).then(() => ({ ok: true }));
   }
 
   @Get(':id')

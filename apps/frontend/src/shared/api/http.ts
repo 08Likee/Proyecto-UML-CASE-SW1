@@ -1,3 +1,4 @@
+import { ApiHttpError } from './api-http-error';
 import {
   guardarSesion,
   leerSesion,
@@ -121,7 +122,7 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
-    throw new Error(await obtenerMensajeError(response));
+    throw new ApiHttpError(await obtenerMensajeError(response), response.status);
   }
 
   if (response.status === 204) {
@@ -189,7 +190,7 @@ export async function apiBlobRequest(
   }
 
   if (!response.ok) {
-    throw new Error(await obtenerMensajeError(response));
+    throw new ApiHttpError(await obtenerMensajeError(response), response.status);
   }
 
   return {

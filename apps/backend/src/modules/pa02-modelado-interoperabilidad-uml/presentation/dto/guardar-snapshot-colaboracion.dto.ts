@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsObject, IsString } from 'class-validator';
+import { IsInt, Min, IsNotEmpty, IsObject, IsString } from 'class-validator';
 
 export class GuardarSnapshotColaboracionDto {
   @IsObject()
@@ -7,4 +7,8 @@ export class GuardarSnapshotColaboracionDto {
   @IsString()
   @IsNotEmpty()
   estadoYjsBase64!: string;
+
+  @IsInt()
+  @Min(1)
+  versionEsperada!: number;
 }

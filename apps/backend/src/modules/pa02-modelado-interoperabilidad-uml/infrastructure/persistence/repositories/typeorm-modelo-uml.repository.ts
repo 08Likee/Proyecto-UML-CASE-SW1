@@ -84,11 +84,16 @@ export class TypeOrmModeloUmlRepository implements ModeloUmlRepository {
       .set({
         nombre: datos.nombre,
         descripcion: datos.descripcion,
-        contenido: () => 'CAST(:contenido AS jsonb)',
+        // Si Yjs está activo, el guardado REST modifica metadatos pero jamás
+        // reemplaza el contenido colaborativo con una copia local obsoleta.
+        contenido: () => `CASE
+          WHEN contenido #> '{configuracion,__colaboracion}' IS NOT NULL
+          THEN contenido ELSE CAST(:contenido AS jsonb) END`,
         version: () => 'version + 1',
         fechaActualizacion: new Date(),
       })
       .where('id = :idModelo', { idModelo })
+      .andWhere("EXISTS (SELECT 1 FROM proyecto p WHERE p.id = :idProyecto AND p.estado <> 'ELIMINADO')")
       .andWhere('id_proyecto = :idProyecto', { idProyecto })
       .andWhere("estado = 'ACTIVO'")
       .andWhere('version = :versionEsperada', {
@@ -147,13 +152,12 @@ export class TypeOrmModeloUmlRepository implements ModeloUmlRepository {
   ): Promise<SnapshotColaborativoModeloUml | null> {
     const entity = await this.dataSource
       .getRepository(ModeloUmlEntity)
-      .findOne({
-        where: {
-          id: idModelo,
-          idProyecto,
-          estado: 'ACTIVO',
-        },
-      });
+      .createQueryBuilder('modelo')
+      .where('modelo.id = :idModelo', { idModelo })
+      .andWhere('modelo.id_proyecto = :idProyecto', { idProyecto })
+      .andWhere("modelo.estado = 'ACTIVO'")
+      .andWhere("EXISTS (SELECT 1 FROM proyecto p WHERE p.id = :idProyecto AND p.estado <> 'ELIMINADO')")
+      .getOne();
 
     if (!entity) {
       return null;
@@ -172,6 +176,7 @@ export class TypeOrmModeloUmlRepository implements ModeloUmlRepository {
     idProyecto: string,
     contenido: ModeloUmlContenido,
     estadoYjsBase64: string,
+    versionEsperada: number,
   ): Promise<ModeloUml | null> {
     const repository = this.dataSource.getRepository(ModeloUmlEntity);
     const contenidoPersistido = agregarEstadoColaborativo(
@@ -188,8 +193,10 @@ export class TypeOrmModeloUmlRepository implements ModeloUmlRepository {
         fechaActualizacion: new Date(),
       })
       .where('id = :idModelo', { idModelo })
+      .andWhere("EXISTS (SELECT 1 FROM proyecto p WHERE p.id = :idProyecto AND p.estado <> 'ELIMINADO')")
       .andWhere('id_proyecto = :idProyecto', { idProyecto })
       .andWhere("estado = 'ACTIVO'")
+      .andWhere('version = :versionEsperada', { versionEsperada })
       .setParameter('contenido', JSON.stringify(contenidoPersistido))
       .execute();
 

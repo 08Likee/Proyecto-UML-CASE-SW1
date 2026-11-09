@@ -13,6 +13,7 @@ import {
   sincronizarContenidoDocumento,
 } from '../collaboration/modelo-yjs';
 import { obtenerAccesoColaboracion } from '../api/colaboracion.api';
+import { admiteModoOffline, esAccesoRevocadoHttp, esRechazoAutorizacionColaborativa } from './estado-acceso-colaboracion';
 
 export type EstadoConexionColaboracion =
   | 'conectando'
@@ -28,8 +29,10 @@ export interface ModeloColaborativoState {
   participantes: number;
   error: string | null;
   modoOffline: boolean;
+  accesoRevocado: boolean;
   prepararGuardadoManual: () => Promise<number>;
   registrarGuardadoRest: () => void;
+  integrarAplicacionIa: (estadoYjsBase64: string, version: number) => void;
 }
 
 interface UseModeloColaborativoArgs {
@@ -105,6 +108,7 @@ export function useModeloColaborativo({
   puedeEditarInicial,
 }: UseModeloColaborativoArgs): ModeloColaborativoState {
   const recursosRef = useRef<RecursosColaboracion | null>(null);
+  const accesoRevocadoRef = useRef(false);
   const listoRef = useRef(false);
   const refrescoVersionRef = useRef<number | null>(null);
   const metadatosBaseRef = useRef<{ nombre: string; descripcion: string | null } | null>(null);
@@ -116,6 +120,17 @@ export function useModeloColaborativo({
   const [puedeEditar, setPuedeEditar] = useState(puedeEditarInicial);
   const [participantes, setParticipantes] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [accesoRevocado, setAccesoRevocado] = useState(false);
+
+  const marcarAccesoRevocado = useCallback(() => {
+    accesoRevocadoRef.current = true;
+    setAccesoRevocado(true);
+    setPuedeEditar(false);
+    setSincronizado(false);
+    setParticipantes(1);
+    setConexion('desconectado');
+    setError(null);
+  }, []);
 
   const refrescarVersion = useCallback(async () => {
     try {
@@ -154,6 +169,7 @@ export function useModeloColaborativo({
   useEffect(() => {
     let activo = true;
     listoRef.current = false;
+    accesoRevocadoRef.current = false;
     const resetEstadoTimer = window.setTimeout(() => {
       if (!activo) {
         return;
@@ -166,6 +182,7 @@ export function useModeloColaborativo({
       setPuedeEditar(puedeEditarInicial);
       setParticipantes(1);
       setError(null);
+      setAccesoRevocado(false);
     }, 0);
     const modeloInicial = useModeladorStore.getState().modelo;
     metadatosBaseRef.current = modeloInicial && modeloInicial.id === idModelo
@@ -197,7 +214,7 @@ export function useModeloColaborativo({
     };
 
     const marcarListoSiHayContenido = () => {
-      if (!documentoTieneContenido(document)) {
+      if (accesoRevocadoRef.current || !documentoTieneContenido(document)) {
         return;
       }
 
@@ -207,18 +224,19 @@ export function useModeloColaborativo({
     };
 
     const token = async () => {
-      const acceso = await obtenerAccesoColaboracion(idProyecto, idModelo);
-
-      if (activo) {
-        setPuedeEditar(acceso.puedeEditar);
+      if (accesoRevocadoRef.current) {
+        throw new Error('El acceso al modelo fue revocado. Regresá a proyectos.');
+      }
+      try {
+        const acceso = await obtenerAccesoColaboracion(idProyecto, idModelo);
+        if (activo) setPuedeEditar(acceso.puedeEditar);
+      } catch (error: unknown) {
+        if (activo && esAccesoRevocadoHttp(error)) marcarAccesoRevocado();
+        throw error;
       }
 
       const sesion = leerSesion();
-
-      if (!sesion) {
-        throw new Error('La sesión no está disponible');
-      }
-
+      if (!sesion) throw new Error('La sesión no está disponible');
       return sesion.accessToken;
     };
 
@@ -233,7 +251,7 @@ export function useModeloColaborativo({
         token,
         flushDelay: 150,
         onStatus: ({ status }) => {
-          if (!activo) {
+          if (!activo || accesoRevocadoRef.current) {
             return;
           }
 
@@ -256,7 +274,7 @@ export function useModeloColaborativo({
           setParticipantes(1);
         },
         onSynced: ({ state }) => {
-          if (!activo || !state) {
+          if (!activo || accesoRevocadoRef.current || !state) {
             return;
           }
 
@@ -265,10 +283,14 @@ export function useModeloColaborativo({
           programarRefrescoVersion();
         },
         onAuthenticationFailed: ({ reason }) => {
-          if (!activo) {
+          if (!activo || accesoRevocadoRef.current) {
             return;
           }
 
+          if (reason && esRechazoAutorizacionColaborativa(reason)) {
+            marcarAccesoRevocado();
+            return;
+          }
           if (reason && esFalloTemporalDeRed(reason)) {
             // Un fallo HTTP al refrescar el token no implica que el WebSocket
             // ya se haya desconectado. onStatus es la fuente de verdad.
@@ -280,7 +302,7 @@ export function useModeloColaborativo({
           setConexion('desconectado');
         },
         onAwarenessChange: ({ states }) => {
-          if (activo) {
+          if (activo && !accesoRevocadoRef.current) {
             setParticipantes(contarParticipantes(states));
           }
         },
@@ -316,7 +338,7 @@ export function useModeloColaborativo({
     }
 
     const onIndexedDbSynced = () => {
-      if (!activo) {
+      if (!activo || accesoRevocadoRef.current) {
         return;
       }
 
@@ -327,7 +349,7 @@ export function useModeloColaborativo({
     indexeddb.on('synced', onIndexedDbSynced);
 
     const onDocumentUpdate = (_update: Uint8Array, origin: unknown) => {
-      if (!activo) {
+      if (!activo || accesoRevocadoRef.current) {
         return;
       }
 
@@ -343,7 +365,7 @@ export function useModeloColaborativo({
     document.on('update', onDocumentUpdate);
 
     const unsubscribeStore = useModeladorStore.subscribe((state, previous) => {
-      if (!activo || !listoRef.current) {
+      if (!activo || accesoRevocadoRef.current || !listoRef.current) {
         return;
       }
 
@@ -374,7 +396,7 @@ export function useModeloColaborativo({
     });
 
     const permissionTimer = window.setInterval(() => {
-      if (!conectado || !navigator.onLine) {
+      if (accesoRevocadoRef.current || !conectado || !navigator.onLine) {
         return;
       }
 
@@ -400,10 +422,12 @@ export function useModeloColaborativo({
       document.destroy();
       recursosRef.current = null;
     };
-  }, [idModelo, idProyecto, puedeEditarInicial, programarRefrescoVersion]);
+  }, [idModelo, idProyecto, puedeEditarInicial, programarRefrescoVersion, marcarAccesoRevocado]);
 
   const prepararGuardadoManual = useCallback(async () => {
     const recursos = recursosRef.current;
+
+    if (accesoRevocadoRef.current) throw new Error('Acceso revocado: el modelo no se puede guardar.');
 
     if (recursos && conexion === 'conectado') {
       recursos.provider.flushPendingUpdates();
@@ -433,6 +457,20 @@ export function useModeloColaborativo({
     programarRefrescoVersion();
   }, [idModelo, programarRefrescoVersion]);
 
+  const integrarAplicacionIa = useCallback((estadoYjsBase64: string, version: number) => {
+    const recursos = recursosRef.current;
+    if (accesoRevocadoRef.current || !recursos || conexion !== 'conectado' || !sincronizado || !puedeEditar) {
+      throw new Error('La colaboración debe estar sincronizada para recibir cambios UML aprobados.');
+    }
+    const update = Uint8Array.from(window.atob(estadoYjsBase64), (c) => c.charCodeAt(0));
+    Y.applyUpdate(recursos.document, update, 'cu13-aplicacion-ia');
+    const actual = useModeladorStore.getState().modelo;
+    if (actual?.id === idModelo) {
+      useModeladorStore.setState({ modelo: { ...actual, version } });
+    }
+    programarRefrescoVersion();
+  }, [conexion, sincronizado, puedeEditar, idModelo, programarRefrescoVersion]);
+
   return {
     listo,
     conexion,
@@ -441,8 +479,10 @@ export function useModeloColaborativo({
     puedeEditar,
     participantes,
     error,
-    modoOffline: conexion === 'desconectado' && listo,
+    modoOffline: admiteModoOffline(conexion, listo, accesoRevocado, error),
+    accesoRevocado,
     prepararGuardadoManual,
     registrarGuardadoRest,
+    integrarAplicacionIa,
   };
 }

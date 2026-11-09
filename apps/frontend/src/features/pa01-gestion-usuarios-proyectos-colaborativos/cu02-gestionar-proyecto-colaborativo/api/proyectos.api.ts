@@ -10,6 +10,26 @@ export interface Proyecto {
   fechaActualizacion: string;
 }
 
+export interface ElementoPapelera {
+  id: string;
+  nombre: string;
+  fechaEliminacion: string;
+  fechaPurga: string;
+  estadoAnterior: string;
+}
+
+export function listarProyectosPapelera(): Promise<ElementoPapelera[]> {
+  return apiRequest<ElementoPapelera[]>('/proyectos/papelera');
+}
+
+export function moverProyectoPapelera(id: string): Promise<{ ok: boolean }> {
+  return apiRequest<{ ok: boolean }>(`/proyectos/${id}`, { method: 'DELETE' });
+}
+
+export function restaurarProyectoPapelera(id: string): Promise<{ ok: boolean }> {
+  return apiRequest<{ ok: boolean }>(`/proyectos/${id}/restaurar`, { method: 'POST' });
+}
+
 export interface CrearProyectoEntrada {
   nombre: string;
   descripcion?: string;

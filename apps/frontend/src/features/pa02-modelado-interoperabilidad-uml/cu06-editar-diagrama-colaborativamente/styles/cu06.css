@@ -53,3 +53,16 @@
     white-space: normal;
   }
 }
+
+/* Rechazo de autorización ≠ desconexión. No mostrar el lienzo local tras revocación. */
+.collaboration-status.revoked { color: var(--danger, #e06666); }
+.modeler-access-revoked {
+  margin: clamp(1rem, 4vw, 3rem) auto;
+  padding: clamp(1rem, 3vw, 2rem);
+  width: min(90%, 44rem);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface-soft);
+}
+.modeler-access-revoked h2 { margin-top: 0; }
+.modeler-access-revoked p { line-height: 1.5; }

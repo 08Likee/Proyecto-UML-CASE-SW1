@@ -11,6 +11,7 @@ export class TypeOrmAutorizacionProyectoRepository implements AutorizacionProyec
     idProyecto: string,
     recurso: string,
     accion: string,
+    permitirProyectoEliminado = false,
   ): Promise<boolean> {
     const resultado = await this.dataSource.query<
       Array<{
@@ -33,6 +34,7 @@ export class TypeOrmAutorizacionProyectoRepository implements AutorizacionProyec
             END AS permitido
 
           FROM membresia m
+          INNER JOIN proyecto pr ON pr.id = m.id_proyecto
 
           INNER JOIN permiso p
             ON p.recurso = $3
@@ -59,6 +61,7 @@ export class TypeOrmAutorizacionProyectoRepository implements AutorizacionProyec
             m.id_usuario = $1
             AND m.id_proyecto = $2
             AND m.estado = 'ACTIVA'
+            ${permitirProyectoEliminado ? '' : "AND pr.estado <> 'ELIMINADO'"}
 
           LIMIT 1
         `,

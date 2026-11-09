@@ -92,6 +92,7 @@ import { RechazarInvitacionUseCase } from './application/use-cases/cu04-acceder-
 import { AccesoProyectoRepository } from './domain/repositories/acceso-proyecto.repository';
 import { TypeOrmAccesoProyectoRepository } from './infrastructure/persistence/repositories/typeorm-acceso-proyecto.repository';
 import { AccesoProyectoController } from './presentation/controllers/acceso-proyecto.controller';
+import { PapeleraRecursosService } from './application/services/papelera-recursos.service';
 
 @Module({
   imports: [
@@ -196,6 +197,7 @@ import { AccesoProyectoController } from './presentation/controllers/acceso-proy
       useClass: TypeOrmRolRepository,
     },
     AutorizacionProyectoService,
+    PapeleraRecursosService,
     ListarRolesUseCase,
     ListarPermisosUseCase,
     CrearRolPersonalizadoUseCase,
@@ -228,6 +230,7 @@ import { AccesoProyectoController } from './presentation/controllers/acceso-proy
     TokenService,
     SesionRepository,
     AutorizacionProyectoService,
+    PapeleraRecursosService,
     AccessTokenGuard,
   ],
 })

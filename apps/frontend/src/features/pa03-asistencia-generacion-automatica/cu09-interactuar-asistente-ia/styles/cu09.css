@@ -1,0 +1,133 @@
+.cu09-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  width: min(430px, calc(100vw - 48px));
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.cu09-panel-header,
+.cu09-model-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cu09-panel-header h2 {
+  margin: 2px 0 0;
+  font-size: 1.1rem;
+}
+
+.cu09-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.72;
+}
+
+.cu09-close {
+  min-width: 36px;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.cu09-model-status {
+  display: grid;
+  gap: 7px;
+  margin: 16px 0 12px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  background: var(--surface-soft);
+}
+
+.cu09-model-status-row strong {
+  overflow: hidden;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cu09-model-status-row span,
+.cu09-model-status small,
+.cu09-footnote {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.cu09-model-status progress {
+  width: 100%;
+}
+
+.cu09-secondary-button,
+.cu09-run-button {
+  width: 100%;
+}
+
+.cu09-input-group {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  font-weight: 600;
+}
+
+.cu09-input-group textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.cu09-pending,
+.cu09-message {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  font-size: 0.86rem;
+}
+
+.cu09-pending,
+.cu09-message.info {
+  border: 1px solid var(--primary-soft-border);
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.cu09-message.exito {
+  border: 1px solid var(--success-border);
+  background: var(--success-background);
+  color: var(--success-text);
+}
+
+.cu09-message.error {
+  border: 1px solid var(--error-border);
+  background: var(--error-background);
+  color: var(--danger);
+}
+
+.cu09-run-button {
+  margin-top: 14px;
+}
+
+.cu09-footnote {
+  margin: 12px 0 0;
+  line-height: 1.45;
+}
+
+@media (max-width: 720px) {
+  .cu09-panel {
+    right: 12px;
+    bottom: 12px;
+    width: calc(100vw - 24px);
+    max-height: calc(100vh - 90px);
+  }
+}

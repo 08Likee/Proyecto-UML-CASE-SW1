@@ -11,12 +11,14 @@ export class AutorizacionProyectoService {
     idProyecto: string,
     recurso: string,
     accion: string,
+    permitirProyectoEliminado = false,
   ): Promise<boolean> {
     return this.repository.tienePermiso(
       idUsuario,
       idProyecto,
       recurso,
       accion,
+      permitirProyectoEliminado,
     );
   }
 

@@ -6,6 +6,8 @@ interface ProyectoDetalleProps {
   puedeModificar: boolean;
   puedeAdministrarParticipantes: boolean;
   onEditar: () => void;
+  puedeEliminar: boolean;
+  onEliminar: () => void;
   onAdministrarParticipantes: () => void;
 }
 
@@ -19,6 +21,8 @@ export function ProyectoDetalle({
   puedeModificar,
   puedeAdministrarParticipantes,
   onEditar,
+  puedeEliminar,
+  onEliminar,
   onAdministrarParticipantes,
 }: ProyectoDetalleProps) {
   return (
@@ -37,6 +41,9 @@ export function ProyectoDetalle({
             <button type="button" onClick={onAdministrarParticipantes}>
               Participantes y roles
             </button>
+          )}
+          {puedeEliminar && (
+            <button type="button" onClick={onEliminar}>Mover proyecto a papelera</button>
           )}
           {puedeModificar && (
             <button type="button" onClick={onEditar}>

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ModeloUmlNoEncontradoError } from '../../../domain/errors/modelo-uml-no-encontrado.error';
+import { ModeloUmlVersionConflictivaError } from '../../../domain/errors/modelo-uml-version-conflictiva.error';
 import { ModeloUmlRepository } from '../../../domain/repositories/modelo-uml.repository';
 import { validarContenidoModeloUml } from '../../../domain/services/validar-contenido-modelo-uml';
 
@@ -8,6 +8,7 @@ export interface GuardarSnapshotColaboracionEntrada {
   idModelo: string;
   contenido: unknown;
   estadoYjsBase64: string;
+  versionEsperada: number;
 }
 
 @Injectable()
@@ -23,10 +24,11 @@ export class GuardarSnapshotColaboracionUseCase {
         entrada.idProyecto,
         contenido,
         entrada.estadoYjsBase64,
+        entrada.versionEsperada,
       );
 
     if (!modelo) {
-      throw new ModeloUmlNoEncontradoError();
+      throw new ModeloUmlVersionConflictivaError();
     }
 
     return {

@@ -1,0 +1,63 @@
+/* CU-11: panel no modal; no intercepta la interacción del modelo ni cambia permisos. */
+.cu11-raiz { position: relative; z-index: 400; }
+.cu11-activador { position: fixed; left: 52px; bottom: 16px; z-index: 401; border-color: var(--primary-soft-border); color: var(--primary-text); background: var(--primary-soft); box-shadow: var(--shadow); }
+.cu11-panel { position: fixed; left: 16px; bottom: 75px; width: min(425px, calc(100vw - 32px)); max-height: min(78vh, 760px); overflow-y: auto; overscroll-behavior: contain; z-index: 400; padding: 20px; border-radius: 16px; border: 1px solid var(--primary-soft-border); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.cu11-encabezado { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.cu11-encabezado h2 { font-size: 18px; margin: 4px 0 0; }
+.cu11-encabezado button { min-height: 32px; padding: 2px 11px; font-size: 22px; }
+.cu11-sobretitulo { font-size: 11px; text-transform: uppercase; font-weight: 800; letter-spacing: .06em; color: var(--primary); }
+.cu11-lista { display: grid; gap: 10px; }
+.cu11-lista > p { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+.cu11-guia-item { display: grid; gap: 4px; padding: 12px; text-align: left; }
+.cu11-guia-item strong { font-size: 14px; }
+.cu11-guia-item span, .cu11-guia-item small { font-size: 12px; color: var(--text-secondary); font-weight: 400; line-height: 1.5; }
+.cu11-guia-item small { font-weight: 700; color: var(--primary); }
+.cu11-recorrido h3 { margin: 12px 0 5px; font-size: 17px; }
+.cu11-recorrido h4 { margin: 10px 0 6px; font-size: 15px; }
+.cu11-recorrido > p { font-size: 13px; line-height: 1.55; }
+.cu11-recorrido .cu11-objetivo, .cu11-numero { color: var(--text-secondary); }
+.cu11-recorrido .cu11-numero { margin: 10px 0 0; font-size: 12px; font-weight: 700; }
+.cu11-enlace { padding: 0; min-height: 28px; border: 0; color: var(--primary); background: transparent; font-size: 13px; }
+.cu11-progreso { display: flex; gap: 5px; margin-top: 14px; }
+.cu11-progreso span { height: 6px; flex: 1; background: var(--border); border-radius: 10px; }
+.cu11-progreso .cu11-progreso-activo { background: var(--primary); }
+.cu11-recorrido .cu11-advertencia, .cu11-advertencia { padding: 10px; color: var(--warning-text); border: 1px solid var(--warning-text); border-radius: 9px; background: var(--warning-background); }
+.cu11-recorrido .cu11-correcto { color: var(--success-text); font-size: 12px; }
+.cu11-recorrido .cu11-ayuda { padding: 12px; background: var(--surface-hover); border: 1px solid var(--border); border-radius: 9px; }
+.cu11-recorrido .cu11-aviso { color: var(--primary); font-size: 12px; }
+.cu11-acciones-secundarias, .cu11-navegacion { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.cu11-acciones-secundarias button { flex: 1; min-width: 130px; font-size: 12px; }
+.cu11-navegacion button { flex: 1; }
+.cu11-pie { margin-top: 15px; font-size: 11px !important; color: var(--text-secondary); }
+.cu11-final { display: grid; gap: 10px; }
+.cu11-final p { font-size: 13px; line-height: 1.5; }
+.cu11-control-destacado { outline: 3px solid var(--primary) !important; outline-offset: 3px; }
+@media (max-width: 620px) { .cu11-panel { left: 8px; bottom: 65px; padding: 16px; width: calc(100vw - 16px); max-height: 76vh; } .cu11-activador { left: 52px; bottom: 12px; } }
+
+/* Bloque 10.2: el panel puede moverse sin bloquear el diagramador. */
+.cu11-asidero { flex: 1; min-width: 0; cursor: grab; touch-action: none; user-select: none; border-radius: 7px; }
+.cu11-asidero:active { cursor: grabbing; }
+.cu11-asidero:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
+.cu11-instruccion-mover { display: block; margin-top: 6px; font-size: 11px; line-height: 1.35; color: var(--text-secondary); font-weight: 400; }
+.cu11-restablecer { display: block; margin: 0 0 12px auto; min-height: 27px; padding: 3px 8px; font-size: 11px; color: var(--primary); border-color: var(--primary-soft-border); }
+.cu11-leyenda { display: grid; gap: 6px; padding: 10px; margin-top: 10px; border-radius: 10px; border: 1px solid var(--primary-soft-border); background: var(--surface-hover); }
+.cu11-leyenda-fila { display: flex; align-items: start; gap: 8px; color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+.cu11-leyenda-fila strong { color: var(--text); }
+.cu11-leyenda-numero, .cu11-etiqueta-numero { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 19px; height: 19px; border-radius: 50%; background: var(--primary); color: var(--surface); font-size: 11px; font-weight: 800; }
+/* Los marcos y las etiquetas son puramente informativos: no interceptan clics ni arrastres del modelo. */
+.cu11-capa-senales { position: fixed; inset: 0; z-index: 450; pointer-events: none; }
+.cu11-marco-control { position: fixed; border: 3px solid var(--primary); border-radius: 9px; box-shadow: 0 0 0 4px rgba(109, 138, 249, .24); animation: cu11-resalte 1.6s ease-in-out infinite; }
+.cu11-etiqueta-control { position: fixed; display: inline-flex; gap: 6px; align-items: center; max-width: 172px; min-height: 28px; padding: 3px 9px 3px 4px; border: 1px solid var(--primary-soft-border); border-radius: 15px; background: var(--surface); color: var(--text); font-size: 11px; font-weight: 750; white-space: nowrap; box-shadow: var(--shadow); }
+@keyframes cu11-resalte { 50% { box-shadow: 0 0 0 8px rgba(109, 138, 249, .10); } }
+@media (prefers-reduced-motion: reduce) { .cu11-marco-control { animation: none; } }
+@media (max-width: 620px) {
+  /* En móvil también se puede arrastrar el encabezado; el panel queda dentro del viewport. */
+  .cu11-panel { left: 8px; bottom: 65px; width: calc(100vw - 24px); max-height: 76vh; padding: 14px; }
+  .cu11-asidero { cursor: grab; touch-action: none; }
+  .cu11-instruccion-mover { display: block; }
+}
+/* La punta del globo señala el control, como en un recorrido de iniciación. */
+.cu11-etiqueta-control::after { content: ''; position: absolute; left: 13px; bottom: -8px; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 8px solid var(--surface); }
+.cu11-etiqueta-abajo::after { top: -8px; bottom: auto; border-top: 0; border-bottom: 8px solid var(--surface); }
+.cu11-etiqueta-izquierda::after { top: 7px; left: auto; right: -8px; bottom: auto; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-left: 8px solid var(--surface); border-right: 0; }
+.cu11-etiqueta-derecha::after { top: 7px; left: -8px; bottom: auto; border-top: 7px solid transparent; border-bottom: 7px solid transparent; border-right: 8px solid var(--surface); border-left: 0; }

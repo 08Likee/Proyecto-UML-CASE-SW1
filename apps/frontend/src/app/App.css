@@ -808,3 +808,8 @@ label {
     display: none;
   }
 }
+
+/* CU-02 / CU-05: contenedores de recuperación, sin operaciones automáticas */
+.papelera-recursos { display: grid; gap: 1rem; margin: 1rem 0 1.5rem; padding: 1rem;
+  border: 1px solid var(--border-color, #485676); border-radius: 12px; }
+.papelera-recursos .model-card { width: 100%; }

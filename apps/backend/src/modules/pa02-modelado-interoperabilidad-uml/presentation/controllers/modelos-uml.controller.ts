@@ -3,6 +3,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   ForbiddenException,
   Get,
   NotFoundException,
@@ -26,6 +27,7 @@ import {
   AccessTokenGuard,
   type AuthenticatedRequest,
 } from '../../../pa01-gestion-usuarios-proyectos-colaborativos/presentation/guards/access-token.guard';
+import { PapeleraRecursosService } from '../../../pa01-gestion-usuarios-proyectos-colaborativos/application/services/papelera-recursos.service';
 import { OperacionProyectoNoAutorizadaError } from '../../../pa01-gestion-usuarios-proyectos-colaborativos/domain/errors/operacion-proyecto-no-autorizada.error';
 
 @Controller('proyectos/:idProyecto/modelos-uml')
@@ -36,6 +38,7 @@ export class ModelosUmlController {
     private readonly listarModelosUmlUseCase: ListarModelosUmlUseCase,
     private readonly obtenerModeloUmlUseCase: ObtenerModeloUmlUseCase,
     private readonly guardarModeloUmlUseCase: GuardarModeloUmlUseCase,
+    private readonly papelera: PapeleraRecursosService,
   ) {}
 
   @Post()
@@ -70,6 +73,23 @@ export class ModelosUmlController {
     } catch (error: unknown) {
       this.traducirError(error);
     }
+  }
+
+  @Get('papelera')
+  listarPapelera(@Param('idProyecto', new ParseUUIDPipe()) idProyecto: string, @Req() request: AuthenticatedRequest) {
+    return this.papelera.listarModelos(request.usuarioId!, idProyecto);
+  }
+
+  @Delete(':idModelo')
+  moverAPapelera(@Param('idProyecto', new ParseUUIDPipe()) idProyecto: string,
+    @Param('idModelo', new ParseUUIDPipe()) idModelo: string, @Req() request: AuthenticatedRequest) {
+    return this.papelera.moverModelo(request.usuarioId!, idProyecto, idModelo).then(() => ({ok: true}));
+  }
+
+  @Post(':idModelo/restaurar')
+  restaurar(@Param('idProyecto', new ParseUUIDPipe()) idProyecto: string,
+    @Param('idModelo', new ParseUUIDPipe()) idModelo: string, @Req() request: AuthenticatedRequest) {
+    return this.papelera.restaurarModelo(request.usuarioId!, idProyecto, idModelo).then(() => ({ok: true}));
   }
 
   @Get(':idModelo')

@@ -47,6 +47,6 @@ import { ImportacionXmiController } from './presentation/controllers/importacion
     ValidarImportacionXmiUseCase,
     ImportarModeloXmiUseCase,
   ],
-  exports: [ModeloUmlRepository],
+  exports: [ModeloUmlRepository, ObtenerModeloUmlUseCase],
 })
 export class Pa02Module {}

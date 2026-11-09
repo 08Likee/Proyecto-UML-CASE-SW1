@@ -3,7 +3,7 @@ import { type ModeloUmlContenido } from '../../../domain/models/modelo-uml';
 
 @Entity({ name: 'modelo_uml' })
 @Check('chk_modelo_uml_version', '"version" >= 1')
-@Check('chk_modelo_uml_estado', `"estado" IN ('ACTIVO', 'ARCHIVADO')`)
+@Check('chk_modelo_uml_estado', `"estado" IN ('ACTIVO', 'ARCHIVADO', 'ELIMINADO')`)
 @Check('chk_modelo_uml_contenido', `jsonb_typeof("contenido") = 'object'`)
 export class ModeloUmlEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -59,4 +59,16 @@ export class ModeloUmlEntity {
     type: 'uuid',
   })
   idProyecto!: string;
+
+  @Column({ name: 'estado_anterior', type: 'varchar', length: 20, nullable: true })
+  estadoAnterior!: string | null;
+
+  @Column({ name: 'fecha_eliminacion', type: 'timestamptz', nullable: true })
+  fechaEliminacion!: Date | null;
+
+  @Column({ name: 'fecha_purga', type: 'timestamptz', nullable: true })
+  fechaPurga!: Date | null;
+
+  @Column({ name: 'eliminado_por', type: 'uuid', nullable: true })
+  eliminadoPor!: string | null;
 }

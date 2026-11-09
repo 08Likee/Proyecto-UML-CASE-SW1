@@ -63,5 +63,6 @@ export abstract class ModeloUmlRepository {
     idProyecto: string,
     contenido: ModeloUmlContenido,
     estadoYjsBase64: string,
+    versionEsperada: number,
   ): Promise<ModeloUml | null>;
 }

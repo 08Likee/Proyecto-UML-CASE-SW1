@@ -1,4 +1,4 @@
-export type ModeloUmlEstado = 'ACTIVO' | 'ARCHIVADO';
+export type ModeloUmlEstado = 'ACTIVO' | 'ARCHIVADO' | 'ELIMINADO';
 
 export type VisibilidadUml = 'PUBLICA' | 'PRIVADA' | 'PROTEGIDA' | 'PAQUETE';
 

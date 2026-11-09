@@ -139,6 +139,7 @@ export class TypeOrmProyectoRepository implements ProyectoRepository {
       .andWhere('membresia.estado = :estado', {
         estado: 'ACTIVA',
       })
+      .andWhere("proyecto.estado <> 'ELIMINADO'")
       .orderBy('proyecto.fecha_actualizacion', 'DESC')
       .getMany();
 
@@ -154,7 +155,8 @@ export class TypeOrmProyectoRepository implements ProyectoRepository {
         },
       });
 
-    return proyecto ? this.proyectoToDomain(proyecto) : null;
+    return proyecto && proyecto.estado !== 'ELIMINADO'
+      ? this.proyectoToDomain(proyecto) : null;
   }
 
   async esMiembroActivo(
@@ -226,7 +228,7 @@ export class TypeOrmProyectoRepository implements ProyectoRepository {
       },
     });
 
-    if (!proyecto) {
+    if (!proyecto || proyecto.estado === 'ELIMINADO') {
       return null;
     }
 
