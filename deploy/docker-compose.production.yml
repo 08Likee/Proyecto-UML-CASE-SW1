@@ -58,6 +58,11 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-}
 
+      # IA externa del ciclo 3 (GroqCloud + transcripcion)
+      GROQ_API_KEY: ${GROQ_API_KEY:?Debes_definir_GROQ_API_KEY_en_el_env_del_servidor}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      GROQ_TIMEOUT_MS: ${GROQ_TIMEOUT_MS:-20000}
+
       COLLABORATION_SERVICE_SECRET: ${COLLABORATION_SERVICE_SECRET}
     depends_on:
       postgres:
@@ -126,6 +131,8 @@ services:
       - "443:443"
     volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Para renovar certificados sin detener Nginx
+      - /var/www/letsencrypt:/var/www/letsencrypt:ro
     networks:
       - case_internal
 
